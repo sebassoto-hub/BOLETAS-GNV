@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#152541">
+<title>Liquidación GNV</title>
+<style>
+/* ═══ Liquid Glass — capas translúcidas sobre fondo con color ═══ */
+:root{
+  --bg:#152541; --txt:#eef3fb; --dim:#9aa9bf;
+  --acc:#41a8ff; --acc2:#0a84ff;
+  --ok:#30d158; --warn:#ff9f0a; --bad:#ff453a;
+  --glass:rgba(255,255,255,.055);
+  --glass2:rgba(255,255,255,.09);
+  --brd:rgba(255,255,255,.12);
+  --hl:inset 0 1px 0 rgba(255,255,255,.10);
+  --line:rgba(255,255,255,.08);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  padding-bottom:104px;font-size:15px}
+
+/* Fondo: manchas de color que el vidrio desenfoca */
+#bg{position:fixed;inset:-25%;z-index:-2;background:var(--bg);pointer-events:none}
+#bg::before,#bg::after{content:"";position:absolute;width:60vmax;height:60vmax;
+  border-radius:50%;filter:blur(70px);opacity:.62}
+#bg::before{background:radial-gradient(circle at 35% 35%,rgba(10,132,255,.55),transparent 65%);
+  top:2%;left:-8%;animation:blobA 26s ease-in-out infinite alternate}
+#bg::after{background:radial-gradient(circle at 60% 55%,rgba(191,90,242,.38),transparent 62%),
+           radial-gradient(circle at 30% 70%,rgba(100,210,255,.30),transparent 60%);
+  bottom:-4%;right:-12%;animation:blobB 32s ease-in-out infinite alternate}
+@keyframes blobA{to{transform:translate(9vmax,7vmax) scale(1.12)}}
+@keyframes blobB{to{transform:translate(-8vmax,-6vmax) scale(.94)}}
+@media (prefers-reduced-motion:reduce){#bg::before,#bg::after{animation:none}}
+
+header{position:sticky;top:0;z-index:20;padding:14px 16px 10px;
+  background:rgba(21,37,65,.55);
+  -webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);
+  border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--dim);font-size:12px;margin-top:2px}
+main{padding:16px;max-width:640px;margin:0 auto}
+.view{display:none}.view.on{display:block}
+
+/* Nav: cápsula de vidrio flotante */
+nav{position:fixed;left:14px;right:14px;bottom:calc(12px + env(safe-area-inset-bottom));
+  display:flex;gap:2px;padding:6px;border-radius:30px;z-index:30;
+  background:rgba(30,46,78,.55);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);
+  border:1px solid var(--brd);
+  box-shadow:0 14px 44px rgba(0,0,0,.55),var(--hl)}
+nav button{flex:1;background:none;border:none;color:var(--dim);padding:9px 4px 10px;
+  font-size:11px;font-family:inherit;cursor:pointer;border-radius:24px;
+  transition:background .18s,color .18s}
+nav button .ic{display:block;font-size:19px;margin-bottom:3px}
+nav button.on{color:#fff;background:var(--glass2);
+  box-shadow:var(--hl),0 2px 10px rgba(0,0,0,.25)}
+
+/* Tarjetas de vidrio */
+.card{background:var(--glass);border:1px solid var(--brd);border-radius:20px;
+  padding:16px;margin-bottom:14px;
+  -webkit-backdrop-filter:blur(16px) saturate(160%);backdrop-filter:blur(16px) saturate(160%);
+  box-shadow:0 8px 30px rgba(0,0,0,.30),var(--hl)}
+
+/* Botones */
+.btn{width:100%;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.22);
+  background:linear-gradient(180deg,var(--acc),var(--acc2));
+  color:#fff;font-weight:700;font-size:15px;font-family:inherit;cursor:pointer;
+  box-shadow:0 8px 26px rgba(10,132,255,.38),inset 0 1px 0 rgba(255,255,255,.30);
+  transition:transform .12s,box-shadow .12s}
+.btn:active{transform:scale(.985)}
+.btn.sec{background:var(--glass2);color:var(--txt);border:1px solid var(--brd);
+  font-weight:600;box-shadow:var(--hl);
+  -webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%)}
+.btn.ghost{background:transparent;border:1px solid var(--brd);color:var(--dim);
+  font-weight:600;box-shadow:none}
+.btn+.btn{margin-top:9px}
+.btn:disabled{opacity:.45}
+
+/* Cámara */
+#wrap{position:relative;border-radius:20px;overflow:hidden;background:#000;
+  aspect-ratio:3/4;margin-bottom:12px;display:none;
+  border:1px solid var(--brd);box-shadow:0 10px 34px rgba(0,0,0,.45)}
+#wrap.on{display:block}
+video{width:100%;height:100%;object-fit:cover;display:block}
+#reticle{position:absolute;inset:18% 12%;border:2px solid rgba(255,255,255,.85);
+  border-radius:18px;box-shadow:0 0 0 2000px rgba(4,8,16,.38)}
+#hint{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:12px;
+  color:#fff;text-shadow:0 1px 4px #000;padding:0 10px}
+#torch{position:absolute;top:10px;right:10px;width:42px;height:42px;border-radius:50%;
+  background:rgba(10,16,30,.5);border:1px solid rgba(255,255,255,.3);color:#fff;
+  font-size:19px;cursor:pointer;display:none;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#torch.on{display:block}
+#torch.act{background:var(--warn);color:#1a1305;border-color:transparent}
+
+/* Formularios */
+label{display:block;font-size:12px;color:var(--dim);margin:12px 0 5px;font-weight:600}
+input{width:100%;padding:12px;border-radius:14px;border:1px solid var(--brd);
+  background:rgba(255,255,255,.05);color:var(--txt);font-size:16px;font-family:inherit;
+  box-shadow:var(--hl)}
+input:focus{outline:none;border-color:rgba(65,168,255,.65);
+  box-shadow:0 0 0 3px rgba(10,132,255,.22),var(--hl)}
+
+/* Tablas */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:right;color:var(--dim);font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;padding:0 0 8px}
+th:first-child{text-align:left}
+td{padding:9px 0;border-top:1px solid var(--line);text-align:right;
+  font-variant-numeric:tabular-nums}
+td:first-child{text-align:left}
+tr.off td{color:#67758c}
+.tot td{border-top:2px solid var(--brd);font-weight:700}
+
+/* Resultado grande */
+.big{text-align:center;padding:22px 12px;border-radius:22px;margin-bottom:14px;
+  border:1px solid var(--brd);background:var(--glass);
+  -webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%);
+  box-shadow:0 10px 34px rgba(0,0,0,.32),var(--hl)}
+.big .lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.big .amt{font-size:38px;font-weight:800;margin:6px 0 0;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.big.pos{background:linear-gradient(165deg,rgba(48,209,88,.20),rgba(48,209,88,.05));
+  border-color:rgba(48,209,88,.38)}
+.big.pos .amt{color:var(--ok);text-shadow:0 0 24px rgba(48,209,88,.35)}
+.big.neg{background:linear-gradient(165deg,rgba(255,159,10,.20),rgba(255,159,10,.05));
+  border-color:rgba(255,159,10,.38)}
+.big.neg .amt{color:#ffd60a;text-shadow:0 0 24px rgba(255,214,10,.30)}
+
+/* Avisos */
+.note{border-radius:16px;padding:12px 13px;font-size:13px;line-height:1.5;margin-bottom:14px;
+  border:1px solid;box-shadow:var(--hl);
+  -webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%)}
+.note.warn{background:rgba(255,159,10,.12);border-color:rgba(255,159,10,.35);color:#ffdf9e}
+.note.info{background:rgba(100,210,255,.10);border-color:rgba(100,210,255,.32);color:#bfeaff}
+.note.err{background:rgba(255,69,58,.12);border-color:rgba(255,69,58,.35);color:#ffc2bd}
+.note b{display:block;margin-bottom:3px}
+
+.chip{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;
+  border:1px solid}
+.chip.qr{background:rgba(48,209,88,.14);color:#7ce9a3;border-color:rgba(48,209,88,.30)}
+.chip.man{background:rgba(255,159,10,.14);color:#ffce7a;border-color:rgba(255,159,10,.30)}
+
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:11px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:none}
+.row .l{font-size:13px}.row .l small{display:block;color:var(--dim);font-size:11px;margin-top:2px}
+.row .r{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.del{background:none;border:none;color:#67758c;font-size:19px;cursor:pointer;padding:0 3px}
+
+/* Interruptores */
+.sw{position:relative;width:46px;height:27px;flex:none}
+.sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;z-index:2}
+.sw i{position:absolute;inset:0;background:rgba(255,255,255,.14);border-radius:99px;
+  border:1px solid var(--brd);transition:.16s}
+.sw i:after{content:"";position:absolute;top:2px;left:2px;width:21px;height:21px;
+  background:#fff;border-radius:50%;transition:.16s;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.sw input:checked+i{background:var(--ok);border-color:transparent}
+.sw input:checked+i:after{transform:translateX(19px)}
+
+h3{font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;
+  margin:22px 0 9px;font-weight:700}
+.wk{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px}
+.wk button{background:var(--glass2);border:1px solid var(--brd);color:var(--txt);
+  width:38px;height:38px;border-radius:13px;font-size:17px;cursor:pointer;flex:none;
+  box-shadow:var(--hl);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.wk button:disabled{opacity:.3}
+.wk .t{font-weight:700;font-size:15px;text-align:center;flex:1}
+.wk .t small{display:block;color:var(--dim);font-weight:500;font-size:11px;margin-top:1px}
+.empty{text-align:center;color:var(--dim);padding:30px 16px;font-size:14px;line-height:1.6}
+
+/* Semanas desplegables */
+details.sem{margin-bottom:10px}
+details.sem summary{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  background:var(--glass);border:1px solid var(--brd);border-radius:18px;padding:13px 14px;
+  cursor:pointer;user-select:none;list-style:none;box-shadow:var(--hl);
+  -webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%)}
+details.sem summary::-webkit-details-marker{display:none}
+details.sem summary .st{font-size:13px;font-weight:700}
+details.sem summary .st small{display:block;color:var(--dim);font-weight:500;font-size:11px;margin-top:2px}
+details.sem summary .ar{color:var(--dim);font-size:13px;transition:transform .15s;flex:none}
+details.sem[open] summary{border-radius:18px 18px 0 0;border-bottom:none}
+details.sem[open] summary .ar{transform:rotate(180deg)}
+details.sem .card{border-radius:0 0 18px 18px;margin-bottom:0}
+
+code{background:rgba(0,0,0,.35);padding:3px 7px;border-radius:8px;font-size:11px;
+  word-break:break-all;display:block;margin-top:5px;line-height:1.5;
+  font-family:ui-monospace,monospace;border:1px solid var(--line)}
+#bar{height:5px;background:rgba(255,255,255,.10);border-radius:99px;overflow:hidden;
+  margin:12px 0 0;display:none}
+#bar.on{display:block}
+#bar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),#64d2ff);
+  width:0;transition:width .12s;border-radius:99px}
+.dg{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;
+  border-top:1px solid var(--line);gap:12px}
+.dg:first-child{border-top:none}
+.dg b{font-weight:700;text-align:right}
+.si{color:#7ce9a3}.no{color:#ff8a80}
+
+/* Toast de vidrio */
+#toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));
+  transform:translateX(-50%) translateY(90px);
+  background:rgba(48,209,88,.22);color:#d8ffe5;border:1px solid rgba(48,209,88,.45);
+  -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);
+  padding:12px 20px;border-radius:16px;font-weight:700;font-size:14px;z-index:60;
+  pointer-events:none;max-width:88vw;text-align:center;
+  box-shadow:0 10px 32px rgba(0,0,0,.45),var(--hl);
+  opacity:0;visibility:hidden;
+  transition:transform .22s,opacity .22s,visibility 0s .25s}
+#toast.on{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;
+  transition:transform .22s,opacity .22s}
+#toast.err{background:rgba(255,69,58,.22);color:#ffd9d6;border-color:rgba(255,69,58,.45)}
+
+/* Fallback: navegadores sin desenfoque reciben paneles sólidos equivalentes */
+@supports not ((backdrop-filter:blur(4px)) or (-webkit-backdrop-filter:blur(4px))){
+  header{background:rgba(24,40,68,.97)}
+  nav{background:rgba(30,47,78,.97)}
+  .card,.big,details.sem summary{background:rgba(28,44,74,.96)}
+  .btn.sec,.wk button{background:rgba(40,58,92,.97)}
+  .note.warn{background:rgba(66,42,7,.96)}
+  .note.info{background:rgba(9,44,60,.96)}
+  .note.err{background:rgba(64,14,11,.96)}
+  #toast{background:rgba(9,58,26,.97)}
+  #toast.err{background:rgba(70,15,11,.97)}
+}
+</style>
+</head>
+<body>
+<div id="bg" aria-hidden="true"></div>
+
+<header>
+  <h1 id="ttl">Liquidación GNV</h1>
+  <div class="sub" id="sub">Alquiler de taxi · descuento por recaudación</div>
+</header>
+
+<main>
+
+<!-- ══════════ ESCANEAR ══════════ -->
+<section id="v-scan" class="view on">
+  <div id="wrap">
+    <video id="vid" playsinline muted autoplay></video>
+    <div id="reticle"></div>
+    <button id="torch">☀</button>
+    <div id="hint">Acerca el QR hasta que llene el recuadro</div>
+  </div>
+  <canvas id="cv" hidden></canvas>
+
+  <button class="btn" id="bCam">Abrir cámara y escanear</button>
+  <button class="btn sec" id="bImg">Subir fotos de boletas</button>
+  <input type="file" id="file" accept="image/*" multiple hidden>
+  <div id="bar"><i></i></div>
+
+  <div class="card" style="margin-top:16px">
+    <div style="font-weight:700;font-size:14px">Registro manual</div>
+    <div style="color:var(--dim);font-size:12px;margin-top:3px;line-height:1.5">
+      Si el QR no lee, ingresa el <b style="color:var(--txt)">TOTAL A PAGAR</b> del ticket
+      (consumo + recaudación). La app separa las dos partes sola.
+    </div>
+    <label>Total a pagar del ticket (S/)</label>
+    <input type="number" id="mTot" inputmode="decimal" step="0.01" placeholder="59.57">
+    <div id="mEco" style="color:var(--dim);font-size:12px;margin-top:6px;min-height:16px"></div>
+    <label>Fecha de emisión</label>
+    <input type="date" id="mFec">
+    <label>N° de boleta (opcional, sirven los últimos 4 dígitos)</label>
+    <input type="text" id="mNum" inputmode="numeric" placeholder="5220">
+    <button class="btn sec" id="bMan" style="margin-top:14px">Agregar</button>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:10px">Diagnóstico</div>
+    <div class="dg"><span>Lector nativo del celular</span><b id="dNat">—</b></div>
+    <div class="dg"><span>Lector interno (jsQR)</span><b id="dJs">—</b></div>
+    <div class="dg"><span>Conexión segura (HTTPS)</span><b id="dHttps">—</b></div>
+    <div class="dg"><span>Resolución de cámara</span><b id="dRes">—</b></div>
+    <div class="dg"><span>Último intento</span><b id="dInt">—</b></div>
+    <div id="dRaw" style="display:none;margin-top:12px">
+      <div style="font-size:12px;color:var(--dim);font-weight:600">Contenido del QR leído</div>
+      <code id="dRawTxt"></code>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ SEMANA ══════════ -->
+<section id="v-week" class="view">
+  <div class="wk">
+    <button id="wPrev">‹</button>
+    <div class="t"><span id="wLbl">—</span><small id="wSub"></small></div>
+    <button id="wNext">›</button>
+  </div>
+  <div id="wBody"></div>
+</section>
+
+<!-- ══════════ BOLETAS ══════════ -->
+<section id="v-list" class="view"><div id="lBody"></div></section>
+
+<!-- ══════════ AJUSTES ══════════ -->
+<section id="v-cfg" class="view">
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:2px">Parámetros del acuerdo</div>
+    <label>Tarifa por día trabajado (S/)</label>
+    <input type="number" id="cTar" step="1" inputmode="decimal">
+    <label>Porcentaje de recaudación sobre el consumo (%)</label>
+    <input type="number" id="cPct" step="0.01" inputmode="decimal">
+    <label>Placa del vehículo (referencia)</label>
+    <input type="text" id="cPla" placeholder="H2A395">
+    <button class="btn sec" id="bEdit" style="margin-top:16px">Editar parámetros</button>
+    <button class="btn" id="bCfg" style="margin-top:16px;display:none">Guardar cambios</button>
+    <div id="cfgHist"></div>
+  </div>
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:2px">Respaldo en Google Sheets</div>
+    <div style="color:var(--dim);font-size:12px;margin:4px 0 2px;line-height:1.5">
+      Cada boleta registrada se envía también a tu hoja de cálculo. Si no hay señal,
+      queda en cola y se envía sola después.
+    </div>
+    <label>URL del Apps Script (termina en /exec)</label>
+    <input type="url" id="sURL" placeholder="https://script.google.com/macros/s/…/exec">
+    <label>Token</label>
+    <input type="text" id="sTok" placeholder="gnv-…">
+    <div style="display:flex;gap:9px;margin-top:14px">
+      <button class="btn sec" id="bSyncSave" style="margin:0">Guardar</button>
+      <button class="btn sec" id="bSyncTest" style="margin:0">Probar</button>
+    </div>
+    <button class="btn sec" id="bSyncAll" style="margin-top:9px">Enviar todas las boletas a la hoja</button>
+    <div class="dg" style="margin-top:12px"><span>Estado</span><b id="sEstado">—</b></div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:2px">Copia de seguridad</div>
+    <div style="color:var(--dim);font-size:12px;margin:4px 0 14px;line-height:1.5">
+      Los datos viven en este navegador. Exporta cada cierto tiempo para no perderlos.
+    </div>
+    <button class="btn sec" id="bExpJ">Exportar respaldo (.json)</button>
+    <button class="btn sec" id="bExpC">Exportar boletas (.csv)</button>
+    <button class="btn ghost" id="bImp">Importar respaldo</button>
+    <input type="file" id="impF" accept=".json,application/json" hidden>
+  </div>
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">Cómo funciona el cálculo</div>
+    <div style="color:var(--dim);font-size:13px;line-height:1.65">
+      · La tarifa se cobra de <b style="color:var(--txt)">lunes a sábado</b>.<br>
+      · Los recaudos descuentan <b style="color:var(--txt)">todos los días, domingo incluido</b>.<br>
+      · Recaudación = importe del consumo × <span id="pctEcho">90</span>%.<br>
+      · Si el resultado sale negativo, queda como saldo a favor del conductor y se arrastra
+        a la semana siguiente.
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">Borrar todo</div>
+    <button class="btn ghost" id="bWipe" style="color:#f87171;border-color:#7f1d1d">
+      Eliminar todos los datos</button>
+  </div>
+</section>
+
+</main>
+
+<nav>
+  <button data-v="scan" class="on"><span class="ic">⊙</span>Escanear</button>
+  <button data-v="week"><span class="ic">▤</span>Semana</button>
+  <button data-v="list"><span class="ic">≡</span>Boletas</button>
+  <button data-v="cfg"><span class="ic">⚙</span>Ajustes</button>
+</nav>
+
+<div id="toast"></div>
+
+<!-- ══════════ jsQR incrustado (sin CDN: funciona sin conexión) ══════════ -->
+<script>/*__JSQR__*/</script>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ═══════════ ALMACENAMIENTO ═══════════ */
+const KEY = "gnv_liq_v1";
+let mem = null;
+const DEF = { boletas: [], libres: {}, cfg: { tarifa: 50, pct: 90, placa: "" }, cfgHist: [],
+              sync: { url:"", token:"", cola: [] } };
+const clone = o => JSON.parse(JSON.stringify(o));
+function load(){ try{ const r=localStorage.getItem(KEY);
+    const d=Object.assign(clone(DEF), r?JSON.parse(r):{});
+    d.sync=Object.assign({url:"",token:"",cola:[]}, d.sync||{});
+    return d;
+  }catch(e){ return mem||(mem=clone(DEF)); } }
+function save(){ mem=DB; try{ localStorage.setItem(KEY,JSON.stringify(DB)); }catch(e){} }
+let DB = load();
+
+/* ═══════════ FECHAS (ancladas al mediodía UTC: sin desfase horario) ═══════════ */
+const D = s => new Date(s+"T12:00:00Z");
+const S = d => d.toISOString().slice(0,10);
+const addD = (s,n)=>{const d=D(s);d.setUTCDate(d.getUTCDate()+n);return S(d);};
+const dow = s => (D(s).getUTCDay()+6)%7;
+const lunes = s => addD(s,-dow(s));
+const hoy = () => new Date().toLocaleDateString("en-CA",{timeZone:"America/Lima"});
+const DIAS=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const MES=["ene","feb","mar","abr","may","jun","jul","ago","set","oct","nov","dic"];
+const fmtD = s => `${D(s).getUTCDate()} ${MES[D(s).getUTCMonth()]}`;
+const money = n => (n<0?"−":"")+"S/ "+Math.abs(n).toFixed(2);
+const r2 = n => Math.round(n*100)/100;
+
+/* ═══════════ PARSEO DEL QR ═══════════ */
+function normFecha(t){ if(!t) return null; t=String(t).trim();
+  let m=t.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if(m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  m=t.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return null; }
+
+function parseQR(txt){
+  txt=(txt||"").trim();
+  // Formato A — cadena SUNAT: RUC|TIPO|SERIE|NUMERO|IGV|TOTAL|FECHA|...
+  const pipe = p => {
+    if(p.length<7) return null;
+    const total=parseFloat(p[5]), fecha=normFecha(p[6]);
+    if(!isFinite(total)||total<=0||!fecha) return null;
+    return {ruc:p[0].trim(),tipo:p[1].trim(),serie:p[2].trim(),numero:p[3].trim(),
+            igv:parseFloat(p[4])||0,total,fecha};
+  };
+  if(txt.includes("|")){ const r=pipe(txt.split("|")); if(r) return r; }
+  // Formato B — URL de consulta (varía por proveedor)
+  if(/^https?:\/\//i.test(txt)){
+    let u; try{ u=new URL(txt); }catch(e){ return null; }
+    for(const [,v] of u.searchParams){
+      if(v.includes("|")){ const r=pipe(v.split("|")); if(r) return r; } }
+    const get=(...ks)=>{ for(const [k,v] of u.searchParams)
+      if(ks.some(x=>k.toLowerCase().includes(x))) return v; return null; };
+    const total=parseFloat(get("total","importe","monto","mto"));
+    const fecha=normFecha(get("fecha","emision","fch","date"));
+    if(isFinite(total)&&total>0&&fecha)
+      return {ruc:get("ruc","emisor")||"",tipo:get("tipo","tipodoc")||"",
+              serie:get("serie")||"",numero:get("numero","correlativo","num")||"",
+              igv:parseFloat(get("igv"))||0,total,fecha};
+  }
+  return null;
+}
+
+/* ═══════════ REGISTRO ═══════════ */
+const recaudo = t => Math.round(t*(DB.cfg.pct/100)*100)/100;
+
+/* Algunos grifos (como GESO) ponen en el campo "total" del QR el TOTAL A PAGAR
+   (consumo + recaudo) en vez del importe de la boleta. El IGV delata el consumo
+   real (consumo = IGV × 118/18); si el total del QR calza con consumo + recaudo,
+   se separa. Si el total ya es el consumo, no se toca nada. */
+function ajustarConsumo(p){
+  const pct=DB.cfg.pct;
+  const igvC = p.igv>0 ? p.igv*118/18 : null;          // consumo según el IGV
+  if(igvC && Math.abs(p.total-igvC)<=0.04) return p;   // el total ya es el consumo
+  if(!igvC) return p;                                  // sin IGV no se especula
+  const base=p.total/(1+pct/100);
+  for(const c of [r2(base-0.01),r2(base),r2(base+0.01)]){
+    const rec=Math.round(c*(pct/100)*100)/100;
+    if(r2(c+rec)===r2(p.total) && Math.abs(c-igvC)<=0.06){
+      p.pagado=p.total;                                // lo que pagó en el grifo
+      p.total=c;                                       // consumo real de la boleta
+      p.ajustado=true;
+      return p;
+    }
+  }
+  return p;
+}
+function agregar(b){
+  const k=[b.ruc,b.serie,b.numero].join("-");
+  if(b.numero&&DB.boletas.some(x=>[x.ruc,x.serie,x.numero].join("-")===k))
+    return {ok:false,msg:"Esa boleta ya estaba registrada"};
+  const nueva={id:Date.now()+""+Math.random().toString(36).slice(2,6),
+    ruc:b.ruc||"",tipo:b.tipo||"",serie:b.serie||"",numero:b.numero||"",
+    fecha:b.fecha,total:b.total,recaudo:recaudo(b.total),
+    pagado:b.pagado||r2(b.total+recaudo(b.total)),
+    fuente:b.fuente||"QR",raw:b.raw||""};
+  DB.boletas.push(nueva);
+  DB.boletas.sort((a,c)=>a.fecha<c.fecha?-1:a.fecha>c.fecha?1:0);
+  save();
+  encolar({action:"add",boleta:filaSheet(nueva)});
+  return {ok:true,msg:`Registrado · consumo ${money(b.total)} · recaudo ${money(recaudo(b.total))}`};
+}
+
+/* ══════════════════════════════════════════════════════════
+   SINCRONIZACIÓN CON GOOGLE SHEETS (via Apps Script)
+   Cada registro/borrado se encola y se envía cuando hay señal.
+   Se manda como text/plain para evitar el preflight de CORS.
+   ══════════════════════════════════════════════════════════ */
+function filaSheet(b){
+  return {id:b.id,fecha:b.fecha,dia:DIAS[dow(b.fecha)],semana:lunes(b.fecha),
+    ruc:b.ruc,serie:b.serie,numero:b.numero,consumo:b.total,
+    recaudo:b.recaudo,pagado:b.pagado||"",fuente:b.fuente};
+}
+function encolar(item){
+  if(!DB.sync||!DB.sync.url) return;          // sin conexión configurada, no se acumula
+  DB.sync.cola.push(item); save();
+  syncTick(); pintarSync();
+}
+let syncBusy=false;
+async function syncTick(){
+  if(syncBusy||!DB.sync.url||!DB.sync.cola.length) return;
+  if(typeof navigator!=="undefined"&&navigator.onLine===false) return;
+  syncBusy=true;
+  try{
+    while(DB.sync.cola.length){
+      const item=DB.sync.cola[0];
+      const res=await fetch(DB.sync.url,{method:"POST",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify({token:DB.sync.token,...item})});
+      const j=await res.json();
+      if(!j.ok) break;                        // token inválido u otro error: no perder la cola
+      DB.sync.cola.shift(); save();
+    }
+  }catch(e){}                                 // sin señal: la cola espera
+  syncBusy=false; pintarSync();
+}
+function pintarSync(){
+  const el=$("sEstado"); if(!el) return;
+  if(!DB.sync.url){ el.innerHTML='<span style="color:var(--dim)">sin conectar</span>'; return; }
+  el.innerHTML=DB.sync.cola.length
+    ? `<span style="color:#ffce7a">${DB.sync.cola.length} pendiente${DB.sync.cola.length>1?"s":""} de enviar</span>`
+    : '<span class="si">todo sincronizado</span>';
+}
+addEventListener("online",syncTick);
+setInterval(syncTick,45000);
+
+/* ══════════════════════════════════════════════════════════
+   MOTOR DE LECTURA DE QR
+   Tres capas, de la más potente a la más tozuda:
+     1· BarcodeDetector nativo (usa el hardware del celular)
+     2· jsQR sobre la imagen completa
+     3· jsQR por mosaicos, con realce de contraste y binarizado
+   ══════════════════════════════════════════════════════════ */
+const HAY_JSQR = typeof jsQR === "function";
+let detector = null, HAY_NATIVO = false;
+
+(async () => {
+  try{
+    if("BarcodeDetector" in window){
+      const fmts = await BarcodeDetector.getSupportedFormats();
+      if(fmts.includes("qr_code")){
+        detector = new BarcodeDetector({formats:["qr_code"]});
+        HAY_NATIVO = true;
+      }
+    }
+  }catch(e){}
+  pintarDiag();
+})();
+
+function pintarDiag(){
+  const https = location.protocol==="https:"||location.hostname==="localhost";
+  $("dNat").innerHTML = HAY_NATIVO?'<span class="si">disponible</span>'
+                                  :'<span style="color:var(--dim)">no disponible</span>';
+  $("dJs").innerHTML  = HAY_JSQR ?'<span class="si">cargado</span>'
+                                 :'<span class="no">NO CARGÓ</span>';
+  $("dHttps").innerHTML = https?'<span class="si">sí</span>':'<span class="no">no — la cámara no abrirá</span>';
+}
+const setDiag = (id,txt) => { const e=$(id); if(e) e.textContent=txt; };
+
+/* ── Preprocesos sobre ImageData ── */
+function realce(d,k){ const o=new Uint8ClampedArray(d.length);
+  for(let i=0;i<d.length;i+=4){ const v=d[i]*.299+d[i+1]*.587+d[i+2]*.114;
+    const c=Math.max(0,Math.min(255,128+(v-128)*k))|0; o[i]=o[i+1]=o[i+2]=c; o[i+3]=255; }
+  return o; }
+function binariza(d){                       // umbral de Otsu
+  const h=new Array(256).fill(0), g=new Uint8Array(d.length/4);
+  for(let i=0,j=0;i<d.length;i+=4,j++){ const v=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)|0;
+    g[j]=v; h[v]++; }
+  const N=g.length; let sum=0; for(let i=0;i<256;i++) sum+=i*h[i];
+  let sB=0,wB=0,mx=0,th=128;
+  for(let t=0;t<256;t++){ wB+=h[t]; if(!wB) continue; const wF=N-wB; if(!wF) break;
+    sB+=t*h[t]; const mB=sB/wB, mF=(sum-sB)/wF, v=wB*wF*(mB-mF)**2;
+    if(v>mx){ mx=v; th=t; } }
+  const o=new Uint8ClampedArray(d.length);
+  for(let i=0,j=0;i<d.length;i+=4,j++){ const v=g[j]>th?255:0; o[i]=o[i+1]=o[i+2]=v; o[i+3]=255; }
+  return o; }
+
+const cv = $("cv"), ctx = cv.getContext("2d",{willReadFrequently:true});
+
+// Extrae una región de la fuente a un lienzo de ~destino px de ancho.
+// Recortar y ampliar es lo que hace legible un QR pequeño dentro de una foto grande.
+function region(src,sx,sy,sw,sh,destW){
+  const esc=Math.min(2.5, destW/sw);
+  cv.width=Math.max(64,Math.round(sw*esc));
+  cv.height=Math.max(64,Math.round(sh*esc));
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
+  ctx.drawImage(src,sx,sy,sw,sh,0,0,cv.width,cv.height);
+  return ctx.getImageData(0,0,cv.width,cv.height);
+}
+function leerJsQR(img,pre,inv){
+  if(!HAY_JSQR) return null;
+  try{
+    const d = pre==="crudo"?img.data : pre==="realce"?realce(img.data,2.2) : binariza(img.data);
+    const r = jsQR(d,img.width,img.height,{inversionAttempts:inv});
+    return r&&r.data?r.data:null;
+  }catch(e){ return null; }
+}
+
+// Rejilla de mosaicos con solape del 25%
+function mosaicos(W,H){
+  const t=[[0,0,W,H]];
+  for(const n of [2,3]){
+    const sw=W/n, sh=H/n, ox=sw*.25, oy=sh*.25;
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+      const x=Math.max(0,j*sw-ox), y=Math.max(0,i*sh-oy);
+      t.push([x,y,Math.min(W-x,sw+2*ox),Math.min(H-y,sh+2*oy)]);
+    }
+  }
+  return t;
+}
+
+const pausa = () => new Promise(r=>setTimeout(r,0));
+
+// Barrido completo para fotos. Devuelve el texto del QR o null.
+async function barrer(src,W,H,progreso){
+  if(detector){                                   // 1· nativo
+    try{ const b=await detector.detect(src);
+      if(b&&b.length&&b[0].rawValue) return {txt:b[0].rawValue,via:"lector nativo"};
+    }catch(e){}
+  }
+  const tiles=mosaicos(W,H);
+  const rondas=[["crudo","dontInvert"],["binarizado","dontInvert"],["realce","attemptBoth"]];
+  const total=tiles.length*rondas.length; let n=0;
+  for(const [pre,inv] of rondas){
+    for(let i=0;i<tiles.length;i++){
+      const [x,y,w,h]=tiles[i];
+      const img=region(src,x,y,w,h,1000);
+      const r=leerJsQR(img,pre,inv);
+      n++; if(progreso) progreso(n/total);
+      if(r) return {txt:r,via:`mosaico ${i+1}/${tiles.length} · ${pre}`};
+      if(n%3===0) await pausa();                  // no congelar la interfaz
+    }
+  }
+  return null;
+}
+
+/* ═══════════ CÁMARA ═══════════ */
+let stream=null, corriendo=false, track=null, frames=0, alt=0;
+const vid=$("vid");
+
+async function abrirCam(){
+  if(corriendo) return cerrarCam();
+  if(!(location.protocol==="https:"||location.hostname==="localhost"))
+    return toast("La cámara exige HTTPS — súbelo a GitHub Pages",true);
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},
+      audio:false});
+  }catch(e){ return toast("No se pudo abrir la cámara: "+(e.name||e),true); }
+
+  vid.srcObject=stream;
+  try{ await vid.play(); }catch(e){}
+  track=stream.getVideoTracks()[0];
+  const st=track.getSettings?track.getSettings():{};
+  setDiag("dRes",(st.width||"?")+"×"+(st.height||"?"));
+
+  // Linterna: decisiva con papel térmico desvanecido
+  try{
+    const cap=track.getCapabilities?track.getCapabilities():{};
+    if(cap.torch) $("torch").classList.add("on");
+  }catch(e){}
+
+  $("wrap").classList.add("on");
+  $("bCam").textContent="Detener cámara";
+  $("hint").textContent = HAY_NATIVO
+    ? "Acerca el QR hasta que llene el recuadro"
+    : "Acerca el QR · si tarda, usa la linterna";
+  corriendo=true; frames=0; alt=0;
+  requestAnimationFrame(tick);
+}
+
+function cerrarCam(){
+  corriendo=false;
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  stream=null; track=null;
+  $("wrap").classList.remove("on");
+  $("torch").classList.remove("on","act");
+  $("bCam").textContent="Abrir cámara y escanear";
+}
+
+$("torch").onclick=async()=>{
+  if(!track) return;
+  const act=!$("torch").classList.contains("act");
+  try{ await track.applyConstraints({advanced:[{torch:act}]});
+       $("torch").classList.toggle("act",act);
+  }catch(e){ toast("Este celular no permite encender la linterna",true); }
+};
+
+async function tick(){
+  if(!corriendo) return;
+  if(vid.readyState>=2 && vid.videoWidth){
+    const W=vid.videoWidth, H=vid.videoHeight;
+    frames++;
+    let txt=null;
+
+    if(detector){
+      try{ const b=await detector.detect(vid);
+        if(b&&b.length&&b[0].rawValue) txt=b[0].rawValue; }catch(e){}
+    }
+    if(!txt && HAY_JSQR){
+      // Se alterna cuadro completo / centro ampliado: el centro rescata QR lejanos
+      const centro = (alt++ % 2)===1;
+      const img = centro
+        ? region(vid, W*0.18, H*0.22, W*0.64, H*0.56, 900)
+        : region(vid, 0, 0, W, H, 900);
+      txt = leerJsQR(img,"crudo","dontInvert")
+         || (frames%8===0 ? leerJsQR(img,"binarizado","dontInvert") : null);
+    }
+    if(frames%10===0) setDiag("dInt",`cámara · ${frames} cuadros`);
+    if(txt){ procesar(txt,"cámara"); return; }
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ═══════════ RESULTADO ═══════════ */
+function procesar(txt,origen){
+  $("dRaw").style.display="block";
+  $("dRawTxt").textContent=txt.slice(0,400);
+  setDiag("dInt",origen+" · QR leído");
+
+  const p=parseQR(txt);
+  if(!p){
+    if(navigator.vibrate) navigator.vibrate([60,50,60]);
+    toast("QR leído pero con formato desconocido — mira el Diagnóstico",true);
+    cerrarCam(); return;
+  }
+  ajustarConsumo(p);
+  if(p.ajustado) setDiag("dInt",`QR: total a pagar ${money(p.pagado)} → consumo ${money(p.total)}`);
+  const r=agregar({...p,fuente:"QR",raw:txt});
+  if(navigator.vibrate) navigator.vibrate(r.ok?90:[60,50,60]);
+  toast(r.msg,!r.ok);
+  cerrarCam(); pintarSemana(); pintarLista();
+}
+
+/* ═══════════ FOTOS (selección múltiple) ═══════════ */
+const cargarImagen = f => new Promise((res,rej)=>{
+  const im=new Image();
+  im.onload=()=>res(im);
+  im.onerror=()=>rej(new Error("imagen ilegible"));
+  im.src=URL.createObjectURL(f);
+});
+
+// Procesa UNA foto y devuelve: "ok" | "dup" | "sin" (sin QR) | "raro" (formato)
+async function leerFoto(f,prog){
+  let im; try{ im=await cargarImagen(f); }catch(e){ return "sin"; }
+  const W=im.naturalWidth, H=im.naturalHeight;
+  setDiag("dRes",W+"×"+H+" (foto)");
+  let res=null;
+  try{ res=await barrer(im,W,H,prog); }catch(e){}
+  URL.revokeObjectURL(im.src);
+  if(!res) return "sin";
+  $("dRaw").style.display="block";
+  $("dRawTxt").textContent=res.txt.slice(0,400);
+  const p=parseQR(res.txt);
+  if(!p) return "raro";
+  ajustarConsumo(p);
+  return agregar({...p,fuente:"QR",raw:res.txt}).ok ? "ok" : "dup";
+}
+
+$("bImg").onclick=()=>$("file").click();
+$("file").onchange=async e=>{
+  const files=[...e.target.files]; e.target.value="";
+  if(!files.length) return;
+  if(!HAY_JSQR && !detector) return toast("No hay lector de QR disponible",true);
+
+  $("bar").classList.add("on");
+  $("bImg").disabled=true;
+  const st={ok:0,dup:0,sin:0,raro:0};
+
+  for(let i=0;i<files.length;i++){
+    $("bImg").textContent = files.length>1
+      ? `Leyendo foto ${i+1} de ${files.length}…` : "Buscando el QR…";
+    const r=await leerFoto(files[i],
+      p=>{ $("bar").firstElementChild.style.width=(((i+p)/files.length)*100)+"%"; });
+    st[r]++;
+    setDiag("dInt",`foto ${i+1}/${files.length} · ${
+      {ok:"registrada",dup:"duplicada",sin:"sin QR",raro:"formato desconocido"}[r]}`);
+  }
+
+  $("bar").classList.remove("on"); $("bar").firstElementChild.style.width="0";
+  $("bImg").disabled=false; $("bImg").textContent="Subir fotos de boletas";
+  pintarSemana(); pintarLista();
+
+  const partes=[];
+  if(st.ok)   partes.push(`${st.ok} registrada${st.ok>1?"s":""}`);
+  if(st.dup)  partes.push(`${st.dup} duplicada${st.dup>1?"s":""} (no se cuentan)`);
+  if(st.sin)  partes.push(`${st.sin} sin QR legible`);
+  if(st.raro) partes.push(`${st.raro} con formato desconocido`);
+  if(navigator.vibrate) navigator.vibrate(st.ok?90:[60,50,60]);
+  toast(partes.join(" · ")||"Nada que procesar", !st.ok);
+};
+
+/* ═══════════ CÁLCULO SEMANAL ═══════════ */
+// Dos ventanas distintas: tarifa lunes–sábado, recaudos lunes–domingo.
+function semana(lun){
+  const dias=[]; let tarifa=0, recaudos=0;
+  for(let i=0;i<7;i++){
+    const f=addD(lun,i);
+    const bs=DB.boletas.filter(b=>b.fecha===f);
+    const rec=bs.reduce((s,b)=>s+b.recaudo,0), con=bs.reduce((s,b)=>s+b.total,0);
+    const domingo=i===6, libre=!!DB.libres[f];
+    const tar=(domingo||libre)?0:DB.cfg.tarifa;
+    tarifa+=tar; recaudos+=rec;
+    dias.push({f,i,domingo,libre,tar,rec,con,n:bs.length});
+  }
+  return {lun,dias,tarifa:r2(tarifa),recaudos:r2(recaudos),neto:r2(tarifa-recaudos),
+          trabajados:dias.filter(d=>d.tar>0).length};
+}
+function arrastreHasta(lun){
+  if(!DB.boletas.length) return 0;
+  let cur=lunes(DB.boletas[0].fecha), acc=0;
+  while(cur<lun){ const w=semana(cur); const res=r2(w.neto+acc);
+    acc=res<0?res:0; cur=addD(cur,7); }
+  return acc;
+}
+
+/* ═══════════ VISTA: SEMANA ═══════════ */
+let wCur=lunes(hoy());
+function pintarSemana(){
+  const w=semana(wCur), arr=arrastreHasta(wCur), aPagar=r2(w.neto+arr), dom=w.dias[6];
+  $("wLbl").textContent=`${fmtD(wCur)} – ${fmtD(addD(wCur,6))}`;
+  $("wSub").textContent = wCur===lunes(hoy())?"Semana actual"
+    :(wCur>lunes(hoy())?"Semana futura":"Semana pasada");
+  $("wNext").disabled = wCur>=lunes(hoy());
+  $("wPrev").disabled = !DB.boletas.length||wCur<=lunes(DB.boletas[0].fecha);
+
+  let h=`<div class="big ${aPagar>=0?"pos":"neg"}">
+    <div class="lbl">${aPagar>=0?"Te debe pagar":"Saldo a favor del conductor"}</div>
+    <div class="amt">${money(aPagar)}</div></div>`;
+
+  if(aPagar<0) h+=`<div class="note warn"><b>Esta semana no te paga.</b>
+    Los recaudos (${money(w.recaudos)}) superaron la tarifa (${money(w.tarifa)}).
+    Quedan <b style="display:inline">${money(Math.abs(aPagar))}</b> a favor del conductor,
+    que se descuentan automáticamente de la semana del ${fmtD(addD(wCur,7))}.</div>`;
+
+  if(arr<0) h+=`<div class="note info"><b>Arrastre aplicado</b>
+    Se restaron ${money(Math.abs(arr))} de saldo a favor que venían de la semana
+    del ${fmtD(addD(wCur,-7))}.</div>`;
+
+  h+=`<div class="card"><table><thead><tr>
+    <th>Día</th><th>Consumo</th><th>Recaudo</th><th>Tarifa</th></tr></thead><tbody>`;
+  for(const d of w.dias){
+    const off=d.tar===0&&!d.domingo;
+    h+=`<tr class="${off?"off":""}">
+      <td>${DIAS[d.i].slice(0,3)} ${D(d.f).getUTCDate()}${
+        d.domingo?' <small style="color:var(--dim)">dom</small>'
+                 :off?' <small style="color:var(--warn)">libre</small>':""}</td>
+      <td>${d.con?d.con.toFixed(2):"—"}</td>
+      <td>${d.rec?"−"+d.rec.toFixed(2):"—"}</td>
+      <td>${d.tar?d.tar.toFixed(2):"—"}</td></tr>`;
+  }
+  h+=`<tr class="tot"><td>Totales</td><td></td>
+    <td style="color:#fbbf24">−${w.recaudos.toFixed(2)}</td>
+    <td style="color:#4ade80">${w.tarifa.toFixed(2)}</td></tr></tbody></table>
+    <div style="margin-top:14px;padding-top:13px;border-top:1px solid var(--line);
+      font-size:13px;color:var(--dim);line-height:1.9">
+      <div style="display:flex;justify-content:space-between">
+        <span>Tarifa · ${w.trabajados} día${w.trabajados===1?"":"s"} × ${money(DB.cfg.tarifa)}</span>
+        <b style="color:var(--txt)">${money(w.tarifa)}</b></div>
+      <div style="display:flex;justify-content:space-between">
+        <span>Recaudos GNV${dom.rec?" (domingo incluido)":""}</span>
+        <b style="color:var(--txt)">−${money(w.recaudos)}</b></div>
+      ${arr<0?`<div style="display:flex;justify-content:space-between">
+        <span>Arrastre de la semana anterior</span>
+        <b style="color:var(--txt)">${money(arr)}</b></div>`:""}
+      <div style="display:flex;justify-content:space-between;padding-top:7px;margin-top:5px;
+        border-top:1px solid var(--line);color:var(--txt);font-weight:700">
+        <span>Resultado</span><span>${money(aPagar)}</span></div>
+    </div></div>`;
+
+  h+=`<h3>¿Qué días trabajó?</h3><div class="card" style="padding:4px 16px">`;
+  for(const d of w.dias){
+    if(d.domingo) continue;
+    h+=`<div class="row"><div class="l">${DIAS[d.i]} ${fmtD(d.f)}
+      <small>${d.libre?"sin tarifa":"cobra S/ "+DB.cfg.tarifa}</small></div>
+      <label class="sw"><input type="checkbox" data-libre="${d.f}"
+        ${d.libre?"":"checked"}><i></i></label></div>`;
+  }
+  h+=`<div class="row"><div class="l" style="color:var(--dim)">Domingo ${fmtD(dom.f)}
+    <small>nunca cobra tarifa · sus recaudos sí descuentan</small></div></div></div>
+    <button class="btn sec" id="bWA" style="margin-top:6px">Copiar resumen para WhatsApp</button>`;
+
+  $("wBody").innerHTML=h;
+  document.querySelectorAll("[data-libre]").forEach(el=>{
+    el.onchange=()=>{ const f=el.dataset.libre;
+      if(el.checked) delete DB.libres[f]; else DB.libres[f]=1;
+      save(); pintarSemana(); };
+  });
+  $("bWA").onclick=()=>copiarResumen(w,arr,aPagar);
+}
+
+function copiarResumen(w,arr,aPagar){
+  let t=`Semana ${fmtD(w.lun)} – ${fmtD(addD(w.lun,6))}\n`;
+  t+=`Tarifa: ${w.trabajados} día${w.trabajados===1?"":"s"} x S/ ${DB.cfg.tarifa} = S/ ${w.tarifa.toFixed(2)}\n`;
+  t+=`Recaudos GNV: S/ ${w.recaudos.toFixed(2)}\n`;
+  if(arr<0) t+=`Saldo anterior a favor: S/ ${Math.abs(arr).toFixed(2)}\n`;
+  t+=`-----------------\n`;
+  t+= aPagar>=0 ? `A PAGAR: S/ ${aPagar.toFixed(2)}`
+    : `NO HAY PAGO ESTA SEMANA\nQuedan S/ ${Math.abs(aPagar).toFixed(2)} a favor, se descuentan la proxima semana.`;
+  const ok=()=>toast("Resumen copiado");
+  if(navigator.clipboard&&window.isSecureContext)
+    navigator.clipboard.writeText(t).then(ok,()=>prompt("Copia:",t));
+  else prompt("Copia:",t);
+}
+
+/* ═══════════ VISTA: BOLETAS ═══════════ */
+function pintarLista(){
+  const el=$("lBody");
+  if(!DB.boletas.length){
+    el.innerHTML=`<div class="empty">Todavía no hay boletas.<br>
+      Escanea el QR o registra el importe a mano.</div>`; return; }
+
+  // Se recuerda qué semanas estaban desplegadas para no cerrarlas al re-pintar
+  const abiertas=new Set([...el.querySelectorAll("details.sem[open]")].map(d=>d.dataset.lun));
+  const habiaLista=el.querySelector("details.sem")!==null;
+
+  const porSem={};
+  for(const b of [...DB.boletas].reverse()) (porSem[lunes(b.fecha)]=porSem[lunes(b.fecha)]||[]).push(b);
+  const semanas=Object.keys(porSem).sort().reverse();
+
+  let h="";
+  semanas.forEach((lun,idx)=>{
+    const bs=porSem[lun], rec=r2(bs.reduce((s,b)=>s+b.recaudo,0));
+    // La más reciente llega abierta; el resto conserva su estado
+    const abrir = habiaLista ? abiertas.has(lun) : idx===0;
+    h+=`<details class="sem" data-lun="${lun}"${abrir?" open":""}>
+      <summary><span class="st">${fmtD(lun)} – ${fmtD(addD(lun,6))}
+        <small>${bs.length} boleta${bs.length===1?"":"s"} · recaudo ${money(rec)}</small></span>
+        <span class="ar">▾</span></summary>
+      <div class="card" style="padding:4px 16px">`;
+    for(const b of bs){
+      h+=`<div class="row"><div class="l">${DIAS[dow(b.fecha)]} ${fmtD(b.fecha)}
+        <span class="chip ${b.fuente==="QR"?"qr":"man"}">${b.fuente}</span>
+        <small>Consumo S/ ${b.total.toFixed(2)}${b.serie?` · ${b.serie}-${b.numero}`:b.numero?` · N° ${b.numero}`:""}</small></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="r" style="color:#fbbf24">−${b.recaudo.toFixed(2)}</span>
+          <button class="del" data-del="${b.id}">×</button></div></div>`;
+    }
+    h+=`</div></details>`;
+  });
+  el.innerHTML=h;
+  el.querySelectorAll("[data-del]").forEach(x=>x.onclick=ev=>{
+    ev.preventDefault();
+    if(!confirm("¿Eliminar esta boleta?")) return;
+    DB.boletas=DB.boletas.filter(b=>b.id!==x.dataset.del);
+    save();
+    encolar({action:"del",id:x.dataset.del});
+    pintarLista(); pintarSemana(); });
+}
+
+/* ═══════════ MANUAL ═══════════ */
+// El usuario ingresa el TOTAL A PAGAR (consumo + recaudo). Se separa igual
+// que con el QR: consumo tal que consumo + recaudo(consumo) = total.
+function desdePagado(pagado){
+  const base=pagado/(1+DB.cfg.pct/100);
+  for(const c of [r2(base-0.01),r2(base),r2(base+0.01)])
+    if(r2(c+recaudo(c))===r2(pagado)) return c;
+  return r2(base);
+}
+$("mTot").oninput=()=>{
+  const t=parseFloat($("mTot").value);
+  if(!isFinite(t)||t<=0){ $("mEco").textContent=""; return; }
+  const c=desdePagado(r2(t));
+  $("mEco").textContent=`= consumo S/ ${c.toFixed(2)} + recaudación S/ ${recaudo(c).toFixed(2)}`;
+};
+$("bMan").onclick=()=>{
+  const t=parseFloat($("mTot").value), f=$("mFec").value;
+  const num=$("mNum").value.trim().replace(/\D/g,"");
+  if(!isFinite(t)||t<=0) return toast("Ingresa el total a pagar del ticket",true);
+  if(!f) return toast("Ingresa la fecha",true);
+  const c=desdePagado(r2(t));
+  const r=agregar({total:c,pagado:r2(t),fecha:f,numero:num,fuente:"Manual"});
+  toast(r.msg,!r.ok);
+  $("mTot").value=""; $("mNum").value=""; $("mEco").textContent="";
+  pintarSemana(); pintarLista();
+};
+
+/* ═══════════ AJUSTES ═══════════ */
+// Los parámetros viven bloqueados; solo se editan tras presionar "Editar",
+// y cada cambio queda en un historial con fecha y hora.
+function setCfgLock(bloq){
+  ["cTar","cPct","cPla"].forEach(id=>$(id).disabled=bloq);
+  $("bEdit").style.display=bloq?"":"none";
+  $("bCfg").style.display=bloq?"none":"";
+}
+function pintarHist(){
+  const h=DB.cfgHist||[], el=$("cfgHist");
+  if(!h.length){ el.innerHTML=""; return; }
+  let s=`<label style="margin-top:18px">Historial de cambios</label>
+    <div style="border:1px solid var(--line);border-radius:12px;padding:4px 12px">`;
+  for(const e of [...h].reverse().slice(0,15))
+    s+=`<div class="dg"><span>${e.f}</span><b>${e.q}</b></div>`;
+  s+=`</div>`;
+  el.innerHTML=s;
+}
+function cargarCfg(){
+  $("cTar").value=DB.cfg.tarifa; $("cPct").value=DB.cfg.pct;
+  $("cPla").value=DB.cfg.placa; $("pctEcho").textContent=DB.cfg.pct;
+  $("sURL").value=DB.sync.url; $("sTok").value=DB.sync.token;
+  setCfgLock(true); pintarHist(); pintarSync();
+}
+$("bSyncSave").onclick=()=>{
+  const u=$("sURL").value.trim(), t=$("sTok").value.trim();
+  if(u&&!/^https:\/\//.test(u)) return toast("La URL debe empezar con https://",true);
+  DB.sync.url=u; DB.sync.token=t; save(); pintarSync();
+  toast(u?"Conexión guardada":"Conexión desactivada");
+};
+$("bSyncTest").onclick=async()=>{
+  const u=$("sURL").value.trim(), t=$("sTok").value.trim();
+  if(!u) return toast("Primero pega la URL",true);
+  $("bSyncTest").disabled=true; $("bSyncTest").textContent="…";
+  try{
+    const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({token:t,action:"ping"})});
+    const j=await r.json();
+    toast(j.ok?"Conexión OK — la hoja responde":"La hoja responde pero el token no coincide",!j.ok);
+  }catch(e){ toast("No responde — revisa la URL o la implementación",true); }
+  $("bSyncTest").disabled=false; $("bSyncTest").textContent="Probar";
+};
+$("bSyncAll").onclick=()=>{
+  if(!DB.sync.url) return toast("Primero guarda la conexión",true);
+  if(!DB.boletas.length) return toast("No hay boletas",true);
+  for(const b of DB.boletas) DB.sync.cola.push({action:"add",boleta:filaSheet(b)});
+  save(); syncTick(); pintarSync();
+  toast(`${DB.boletas.length} boletas en cola de envío`);
+};
+$("bEdit").onclick=()=>{ setCfgLock(false); $("cTar").focus(); };
+$("bCfg").onclick=()=>{
+  const t=parseFloat($("cTar").value), p=parseFloat($("cPct").value);
+  const pla=$("cPla").value.trim().toUpperCase();
+  if(!isFinite(t)||t<0) return toast("Tarifa inválida",true);
+  if(!isFinite(p)||p<0) return toast("Porcentaje inválido",true);
+
+  const cambios=[];
+  if(t!==DB.cfg.tarifa) cambios.push(`tarifa ${DB.cfg.tarifa} → ${t}`);
+  if(p!==DB.cfg.pct)    cambios.push(`% ${DB.cfg.pct} → ${p}`);
+  if(pla!==DB.cfg.placa) cambios.push(`placa ${DB.cfg.placa||"—"} → ${pla||"—"}`);
+  if(!cambios.length){ setCfgLock(true); return toast("Sin cambios"); }
+
+  const cambioPct=p!==DB.cfg.pct;
+  DB.cfg.tarifa=t; DB.cfg.pct=p; DB.cfg.placa=pla;
+  (DB.cfgHist=DB.cfgHist||[]).push({
+    f:new Date().toLocaleString("es-PE",{timeZone:"America/Lima",
+      day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}),
+    q:cambios.join(" · ")
+  });
+  if(cambioPct&&DB.boletas.length&&
+     confirm("¿Recalcular los recaudos de las boletas ya registradas con el nuevo porcentaje?"))
+    DB.boletas.forEach(b=>b.recaudo=recaudo(b.total));
+  save(); cargarCfg(); pintarSemana(); pintarLista(); toast("Guardado");
+};
+const bajar=(nom,txt,tipo)=>{
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([txt],{type:tipo}));
+  a.download=nom; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+$("bExpJ").onclick=()=>bajar(`respaldo-gnv-${hoy()}.json`,JSON.stringify(DB,null,2),"application/json");
+$("bExpC").onclick=()=>{
+  if(!DB.boletas.length) return toast("No hay boletas",true);
+  const h="fecha,dia,semana,ruc,serie,numero,consumo,recaudo,fuente\n";
+  const f=DB.boletas.map(b=>[b.fecha,DIAS[dow(b.fecha)],lunes(b.fecha),b.ruc,b.serie,b.numero,
+    b.total.toFixed(2),b.recaudo.toFixed(2),b.fuente].join(",")).join("\n");
+  bajar(`boletas-gnv-${hoy()}.csv`,"﻿"+h+f,"text/csv;charset=utf-8");
+};
+$("bImp").onclick=()=>$("impF").click();
+$("impF").onchange=e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+      const d=JSON.parse(rd.result);
+      if(!Array.isArray(d.boletas)) throw new Error("formato");
+      if(!confirm(`Se importarán ${d.boletas.length} boletas y se reemplazarán los datos actuales. ¿Continuar?`)) return;
+      DB=Object.assign(clone(DEF),d); save(); cargarCfg(); pintarSemana(); pintarLista();
+      toast("Respaldo importado");
+    }catch(x){ toast("Archivo no válido",true); } };
+  rd.readAsText(f);
+};
+$("bWipe").onclick=()=>{
+  if(!confirm("Se borrarán todas las boletas y ajustes. ¿Seguro?")) return;
+  if(!confirm("Esto no se puede deshacer. ¿Confirmas?")) return;
+  DB=clone(DEF); try{ localStorage.removeItem(KEY); }catch(e){}
+  wCur=lunes(hoy()); cargarCfg(); pintarSemana(); pintarLista(); toast("Datos eliminados");
+};
+
+/* ═══════════ NAVEGACIÓN ═══════════ */
+const TIT={scan:["Liquidación GNV","Alquiler de taxi · descuento por recaudación"],
+  week:["Semana","Tarifa lun–sáb · recaudos todos los días"],
+  list:["Boletas","Historial de consumos registrados"],
+  cfg:["Ajustes","Parámetros y respaldos"]};
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  const v=b.dataset.v;
+  if(v!=="scan") cerrarCam();
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
+  $("ttl").textContent=TIT[v][0]; $("sub").textContent=TIT[v][1];
+  if(v==="week") pintarSemana();
+  if(v==="list") pintarLista();
+  if(v==="cfg") cargarCfg();
+  scrollTo(0,0);
+});
+$("bCam").onclick=abrirCam;
+$("wPrev").onclick=()=>{ wCur=addD(wCur,-7); pintarSemana(); };
+$("wNext").onclick=()=>{ wCur=addD(wCur,7); pintarSemana(); };
+
+let tt;
+function toast(m,err){
+  const t=$("toast"); t.textContent=m; t.classList.toggle("err",!!err); t.classList.add("on");
+  clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"),3200);
+}
+
+/* ═══════════ ARRANQUE ═══════════ */
+$("mFec").value=hoy();
+cargarCfg(); pintarSemana(); pintarLista(); pintarDiag(); syncTick();
+if(!HAY_JSQR) toast("El lector interno no cargó — revisa el Diagnóstico",true);
+addEventListener("pagehide",cerrarCam);
+</script>
+</body>
+</html>
