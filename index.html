@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Liquidación GNV</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+:root{
+  --bg:#0f172a; --card:#1e293b; --card2:#273549; --line:#334155;
+  --txt:#e2e8f0; --dim:#94a3b8; --acc:#38bdf8;
+  --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  padding-bottom:76px;font-size:15px}
+header{position:sticky;top:0;z-index:20;background:var(--bg);
+  padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.sub{color:var(--dim);font-size:12px;margin-top:2px}
+main{padding:16px;max-width:640px;margin:0 auto}
+.view{display:none}.view.on{display:block}
+
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:none;color:var(--dim);padding:11px 4px 13px;
+  font-size:11px;font-family:inherit;cursor:pointer}
+nav button .ic{display:block;font-size:19px;margin-bottom:3px}
+nav button.on{color:var(--acc)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:16px;margin-bottom:14px}
+.btn{width:100%;padding:14px;border-radius:11px;border:none;background:var(--acc);
+  color:#04293a;font-weight:700;font-size:15px;font-family:inherit;cursor:pointer}
+.btn.sec{background:var(--card2);color:var(--txt);border:1px solid var(--line);font-weight:600}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--dim);font-weight:600}
+.btn+.btn{margin-top:9px}
+.btn:disabled{opacity:.45}
+
+#wrap{position:relative;border-radius:14px;overflow:hidden;background:#000;
+  aspect-ratio:3/4;margin-bottom:12px;display:none}
+#wrap.on{display:block}
+video{width:100%;height:100%;object-fit:cover;display:block}
+#reticle{position:absolute;inset:16% 10%;border:2px solid var(--acc);border-radius:12px;
+  box-shadow:0 0 0 2000px rgba(0,0,0,.35)}
+#hint{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:12px;
+  color:#fff;text-shadow:0 1px 4px #000}
+
+label{display:block;font-size:12px;color:var(--dim);margin:12px 0 5px;font-weight:600}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--bg);color:var(--txt);font-size:16px;font-family:inherit}
+input:focus{outline:none;border-color:var(--acc)}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:right;color:var(--dim);font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;padding:0 0 8px}
+th:first-child{text-align:left}
+td{padding:9px 0;border-top:1px solid var(--line);text-align:right;
+  font-variant-numeric:tabular-nums}
+td:first-child{text-align:left}
+tr.off td{color:#64748b}
+tr.dom td:first-child span{color:var(--dim)}
+.tot td{border-top:2px solid var(--line);font-weight:700}
+
+.big{text-align:center;padding:20px 12px;border-radius:14px;margin-bottom:14px;
+  border:1px solid var(--line);background:var(--card)}
+.big .lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.big .amt{font-size:38px;font-weight:800;margin:6px 0 0;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.big.pos{border-color:#166534;background:#052e16}
+.big.pos .amt{color:#4ade80}
+.big.neg{border-color:#854d0e;background:#2c1a02}
+.big.neg .amt{color:#fbbf24}
+
+.note{border-radius:11px;padding:12px 13px;font-size:13px;line-height:1.5;margin-bottom:14px}
+.note.warn{background:#2c1a02;border:1px solid #854d0e;color:#fde68a}
+.note.info{background:#0c2b3a;border:1px solid #155e75;color:#a5f3fc}
+.note b{display:block;margin-bottom:3px}
+
+.chip{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700}
+.chip.qr{background:#052e16;color:#4ade80}.chip.man{background:#2c1a02;color:#fbbf24}
+
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:11px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:none}
+.row .l{font-size:13px}.row .l small{display:block;color:var(--dim);font-size:11px;margin-top:2px}
+.row .r{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.del{background:none;border:none;color:#64748b;font-size:19px;cursor:pointer;padding:0 3px}
+
+.sw{position:relative;width:44px;height:26px;flex:none}
+.sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;z-index:2}
+.sw i{position:absolute;inset:0;background:#475569;border-radius:99px;transition:.15s}
+.sw i:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;
+  background:#fff;border-radius:50%;transition:.15s}
+.sw input:checked+i{background:var(--ok)}
+.sw input:checked+i:after{transform:translateX(18px)}
+
+h3{font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;
+  margin:22px 0 9px;font-weight:700}
+.wk{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px}
+.wk button{background:var(--card);border:1px solid var(--line);color:var(--txt);
+  width:38px;height:38px;border-radius:10px;font-size:17px;cursor:pointer;flex:none}
+.wk button:disabled{opacity:.3}
+.wk .t{font-weight:700;font-size:15px;text-align:center;flex:1}
+.wk .t small{display:block;color:var(--dim);font-weight:500;font-size:11px;margin-top:1px}
+.empty{text-align:center;color:var(--dim);padding:30px 16px;font-size:14px;line-height:1.6}
+code{background:var(--bg);padding:2px 6px;border-radius:5px;font-size:12px;
+  word-break:break-all;display:inline-block}
+#toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(80px);
+  background:var(--ok);color:#04240f;padding:12px 20px;border-radius:11px;font-weight:700;
+  font-size:14px;z-index:60;transition:transform .22s;pointer-events:none;max-width:88vw;text-align:center}
+#toast.on{transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--bad);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="ttl">Liquidación GNV</h1>
+  <div class="sub" id="sub">Alquiler de taxi · descuento por recaudación</div>
+</header>
+
+<main>
+
+<!-- ══════════════ ESCANEAR ══════════════ -->
+<section id="v-scan" class="view on">
+  <div id="wrap">
+    <video id="vid" playsinline muted></video>
+    <div id="reticle"></div>
+    <div id="hint">Apunta al código QR de la boleta</div>
+  </div>
+  <canvas id="cv" hidden></canvas>
+
+  <button class="btn" id="bCam">Abrir cámara y escanear</button>
+  <button class="btn sec" id="bImg">Subir foto de la boleta</button>
+  <input type="file" id="file" accept="image/*" hidden>
+
+  <div class="card" style="margin-top:16px">
+    <div style="font-weight:700;font-size:14px">Registro manual</div>
+    <div style="color:var(--dim);font-size:12px;margin-top:3px;line-height:1.5">
+      Si el QR no lee, basta el importe del consumo de G.N.V. La recaudación se calcula sola.
+    </div>
+    <label>Importe del consumo G.N.V. (S/)</label>
+    <input type="number" id="mTot" inputmode="decimal" step="0.01" placeholder="31.35">
+    <label>Fecha de emisión</label>
+    <input type="date" id="mFec">
+    <button class="btn sec" id="bMan" style="margin-top:14px">Agregar</button>
+  </div>
+
+  <div class="note info" id="diag" style="display:none">
+    <b>Contenido del último QR leído</b>
+    <code id="diagTxt"></code>
+    <div style="margin-top:8px;font-size:12px;opacity:.85">
+      Si el registro no salió bien, comparte este texto para ajustar el lector a tu grifo.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ SEMANA ══════════════ -->
+<section id="v-week" class="view">
+  <div class="wk">
+    <button id="wPrev">‹</button>
+    <div class="t"><span id="wLbl">—</span><small id="wSub"></small></div>
+    <button id="wNext">›</button>
+  </div>
+  <div id="wBody"></div>
+</section>
+
+<!-- ══════════════ BOLETAS ══════════════ -->
+<section id="v-list" class="view">
+  <div id="lBody"></div>
+</section>
+
+<!-- ══════════════ AJUSTES ══════════════ -->
+<section id="v-cfg" class="view">
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:2px">Parámetros del acuerdo</div>
+    <label>Tarifa por día trabajado (S/)</label>
+    <input type="number" id="cTar" step="1" inputmode="decimal">
+    <label>Porcentaje de recaudación sobre el consumo (%)</label>
+    <input type="number" id="cPct" step="0.01" inputmode="decimal">
+    <label>Placa del vehículo (referencia)</label>
+    <input type="text" id="cPla" placeholder="H2A395">
+    <button class="btn" id="bCfg" style="margin-top:16px">Guardar</button>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:2px">Copia de seguridad</div>
+    <div style="color:var(--dim);font-size:12px;margin:4px 0 14px;line-height:1.5">
+      Los datos viven en este navegador. Exporta cada cierto tiempo para no perderlos.
+    </div>
+    <button class="btn sec" id="bExpJ">Exportar respaldo (.json)</button>
+    <button class="btn sec" id="bExpC">Exportar boletas (.csv)</button>
+    <button class="btn ghost" id="bImp">Importar respaldo</button>
+    <input type="file" id="impF" accept=".json" hidden>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">Cómo funciona el cálculo</div>
+    <div style="color:var(--dim);font-size:13px;line-height:1.65">
+      · La tarifa se cobra de <b style="color:var(--txt)">lunes a sábado</b>.<br>
+      · Los recaudos descuentan <b style="color:var(--txt)">todos los días, domingo incluido</b>.<br>
+      · Recaudación = importe del consumo × <span id="pctEcho">90</span>%.<br>
+      · Si el resultado sale negativo, queda como saldo a favor del conductor y
+        se arrastra automáticamente a la semana siguiente.
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">Borrar todo</div>
+    <button class="btn ghost" id="bWipe" style="color:#f87171;border-color:#7f1d1d">
+      Eliminar todos los datos
+    </button>
+  </div>
+</section>
+
+</main>
+
+<nav>
+  <button data-v="scan" class="on"><span class="ic">⊙</span>Escanear</button>
+  <button data-v="week"><span class="ic">▤</span>Semana</button>
+  <button data-v="list"><span class="ic">≡</span>Boletas</button>
+  <button data-v="cfg"><span class="ic">⚙</span>Ajustes</button>
+</nav>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ═══════════ ALMACENAMIENTO ═══════════ */
+const KEY = "gnv_liq_v1";
+let mem = null;                                   // respaldo si no hay localStorage
+const DEF = { boletas: [], libres: {}, cfg: { tarifa: 50, pct: 90, placa: "" } };
+
+function load() {
+  try {
+    const r = localStorage.getItem(KEY);
+    return r ? Object.assign({}, DEF, JSON.parse(r)) : structuredClone(DEF);
+  } catch (e) { return mem || (mem = structuredClone(DEF)); }
+}
+function save() {
+  mem = DB;
+  try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {}
+}
+let DB = load();
+
+/* ═══════════ FECHAS (a prueba de zona horaria) ═══════════ */
+// Se trabaja con cadenas "YYYY-MM-DD". Los Date se anclan al mediodía UTC
+// para que ningún desfase horario mueva un día de sitio.
+const D = s => new Date(s + "T12:00:00Z");
+const S = d => d.toISOString().slice(0, 10);
+const addD = (s, n) => { const d = D(s); d.setUTCDate(d.getUTCDate() + n); return S(d); };
+const dow = s => (D(s).getUTCDay() + 6) % 7;      // 0=lunes … 6=domingo
+const lunes = s => addD(s, -dow(s));
+const hoy = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Lima" });
+
+const DIAS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const MES  = ["ene","feb","mar","abr","may","jun","jul","ago","set","oct","nov","dic"];
+const fmtD = s => `${D(s).getUTCDate()} ${MES[D(s).getUTCMonth()]}`;
+const money = n => (n < 0 ? "−" : "") + "S/ " + Math.abs(n).toFixed(2);
+
+/* ═══════════ LECTURA DEL QR ═══════════ */
+// Los emisores peruanos usan dos formatos. Hay que soportar ambos.
+function normFecha(t) {
+  if (!t) return null;
+  t = t.trim();
+  let m = t.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);           // YYYY-MM-DD
+  if (m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  m = t.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);               // DD/MM/YYYY
+  if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return null;
+}
+
+function parseQR(txt) {
+  txt = (txt || "").trim();
+
+  // Formato A — cadena SUNAT separada por "|":
+  // RUC|TIPO|SERIE|NUMERO|IGV|TOTAL|FECHA|TIPO_DOC_ADQ|NUM_DOC_ADQ|HASH|FIRMA
+  const pipe = p => {
+    if (p.length < 7) return null;
+    const total = parseFloat(p[5]), fecha = normFecha(p[6]);
+    if (!isFinite(total) || total <= 0 || !fecha) return null;
+    return { ruc:p[0].trim(), tipo:p[1].trim(), serie:p[2].trim(),
+             numero:p[3].trim(), igv:parseFloat(p[4])||0, total, fecha };
+  };
+
+  if (txt.includes("|")) { const r = pipe(txt.split("|")); if (r) return r; }
+
+  // Formato B — URL de consulta. Su estructura varía por proveedor,
+  // así que se rastrea tanto un parámetro con pipes como claves sueltas.
+  if (/^https?:\/\//i.test(txt)) {
+    let u; try { u = new URL(txt); } catch (e) { return null; }
+    for (const [, v] of u.searchParams) {
+      if (v.includes("|")) { const r = pipe(v.split("|")); if (r) return r; }
+    }
+    const get = (...ks) => {
+      for (const [k, v] of u.searchParams)
+        if (ks.some(x => k.toLowerCase().includes(x))) return v;
+      return null;
+    };
+    const total = parseFloat(get("total","importe","monto","mto"));
+    const fecha = normFecha(get("fecha","emision","fch","date"));
+    if (isFinite(total) && total > 0 && fecha)
+      return { ruc:get("ruc","emisor")||"", tipo:get("tipo","tipodoc")||"",
+               serie:get("serie")||"", numero:get("numero","correlativo","num")||"",
+               igv:parseFloat(get("igv"))||0, total, fecha };
+  }
+  return null;
+}
+
+/* ═══════════ REGISTRO ═══════════ */
+const recaudo = total =>
+  Math.round(total * (DB.cfg.pct / 100) * 100) / 100;
+
+function agregar(b) {
+  // Antiduplicados: escanear dos veces la misma boleta te haría cobrar de menos.
+  const k = [b.ruc, b.serie, b.numero].join("-");
+  if (b.serie && b.numero && DB.boletas.some(x => [x.ruc,x.serie,x.numero].join("-") === k))
+    return { ok:false, msg:"Esa boleta ya estaba registrada" };
+
+  DB.boletas.push({
+    id: Date.now() + "" + Math.random().toString(36).slice(2,6),
+    ruc:b.ruc||"", tipo:b.tipo||"", serie:b.serie||"", numero:b.numero||"",
+    fecha:b.fecha, total:b.total, recaudo:recaudo(b.total),
+    fuente:b.fuente||"QR", raw:b.raw||""
+  });
+  DB.boletas.sort((a,c) => a.fecha < c.fecha ? -1 : a.fecha > c.fecha ? 1 : 0);
+  save();
+  return { ok:true, msg:`Registrado · recaudo ${money(recaudo(b.total))}` };
+}
+
+/* ═══════════ CÁLCULO SEMANAL ═══════════ */
+// Dos ventanas distintas dentro de la misma semana:
+//   · tarifa   → lunes a sábado (6 días)
+//   · recaudos → lunes a domingo (7 días)
+function semana(lun) {
+  const dias = [];
+  let tarifa = 0, recaudos = 0;
+
+  for (let i = 0; i < 7; i++) {
+    const f = addD(lun, i);
+    const bs = DB.boletas.filter(b => b.fecha === f);
+    const rec = bs.reduce((s, b) => s + b.recaudo, 0);
+    const con = bs.reduce((s, b) => s + b.total, 0);
+    const domingo = i === 6;
+    const libre = !!DB.libres[f];                        // día no trabajado
+    const tar = (domingo || libre) ? 0 : DB.cfg.tarifa;
+
+    tarifa += tar;
+    recaudos += rec;                                     // el domingo sí descuenta
+    dias.push({ f, i, domingo, libre, tar, rec, con, n: bs.length });
+  }
+  return {
+    lun, dias,
+    tarifa: r2(tarifa),
+    recaudos: r2(recaudos),
+    neto: r2(tarifa - recaudos),
+    trabajados: dias.filter(d => d.tar > 0).length
+  };
+}
+const r2 = n => Math.round(n * 100) / 100;
+
+// El arrastre se recalcula desde la primera semana con datos, en cadena.
+function arrastreHasta(lun) {
+  if (!DB.boletas.length) return 0;
+  let cur = lunes(DB.boletas[0].fecha), acc = 0;
+  while (cur < lun) {
+    const w = semana(cur);
+    const res = r2(w.neto + acc);
+    acc = res < 0 ? res : 0;                             // solo lo negativo viaja
+    cur = addD(cur, 7);
+  }
+  return acc;
+}
+
+/* ═══════════ VISTA: SEMANA ═══════════ */
+let wCur = lunes(hoy());
+
+function pintarSemana() {
+  const w = semana(wCur);
+  const arr = arrastreHasta(wCur);
+  const aPagar = r2(w.neto + arr);
+  const dom = w.dias[6];
+
+  document.getElementById("wLbl").textContent =
+    `${fmtD(wCur)} – ${fmtD(addD(wCur,6))}`;
+  document.getElementById("wSub").textContent =
+    wCur === lunes(hoy()) ? "Semana actual"
+      : (wCur > lunes(hoy()) ? "Semana futura" : "Semana pasada");
+  document.getElementById("wNext").disabled = wCur >= lunes(hoy());
+  document.getElementById("wPrev").disabled =
+    !DB.boletas.length || wCur <= lunes(DB.boletas[0].fecha);
+
+  let h = "";
+
+  /* Resultado destacado */
+  h += `<div class="big ${aPagar >= 0 ? "pos" : "neg"}">
+    <div class="lbl">${aPagar >= 0 ? "Te debe pagar" : "Saldo a favor del conductor"}</div>
+    <div class="amt">${money(aPagar)}</div>
+  </div>`;
+
+  /* Aviso explícito de arrastre */
+  if (aPagar < 0) h += `<div class="note warn">
+    <b>Esta semana no te paga.</b>
+    Los recaudos (${money(w.recaudos)}) superaron la tarifa (${money(w.tarifa)}).
+    Quedan <b style="display:inline">${money(Math.abs(aPagar))}</b> a favor del conductor,
+    que se descuentan automáticamente de la semana del ${fmtD(addD(wCur,7))}.
+  </div>`;
+
+  if (arr < 0) h += `<div class="note info">
+    <b>Arrastre aplicado</b>
+    Se restaron ${money(Math.abs(arr))} de saldo a favor que venían
+    de la semana del ${fmtD(addD(wCur,-7))}.
+  </div>`;
+
+  /* Detalle día por día */
+  h += `<div class="card"><table><thead><tr>
+    <th>Día</th><th>Consumo</th><th>Recaudo</th><th>Tarifa</th>
+  </tr></thead><tbody>`;
+
+  for (const d of w.dias) {
+    const off = d.tar === 0 && !d.domingo;
+    h += `<tr class="${off ? "off" : ""} ${d.domingo ? "dom" : ""}">
+      <td><span>${DIAS[d.i].slice(0,3)} ${D(d.f).getUTCDate()}</span>${
+        d.domingo ? ' <small style="color:var(--dim)">dom</small>'
+                  : off ? ' <small style="color:var(--warn)">libre</small>' : ""}</td>
+      <td>${d.con ? d.con.toFixed(2) : "—"}</td>
+      <td>${d.rec ? "−" + d.rec.toFixed(2) : "—"}</td>
+      <td>${d.tar ? d.tar.toFixed(2) : "—"}</td>
+    </tr>`;
+  }
+
+  h += `<tr class="tot"><td>Totales</td><td></td>
+    <td style="color:#fbbf24">−${w.recaudos.toFixed(2)}</td>
+    <td style="color:#4ade80">${w.tarifa.toFixed(2)}</td></tr>`;
+  h += `</tbody></table>`;
+
+  h += `<div style="margin-top:14px;padding-top:13px;border-top:1px solid var(--line);
+    font-size:13px;color:var(--dim);line-height:1.9">
+    <div style="display:flex;justify-content:space-between">
+      <span>Tarifa · ${w.trabajados} día${w.trabajados===1?"":"s"} × ${money(DB.cfg.tarifa)}</span>
+      <b style="color:var(--txt)">${money(w.tarifa)}</b></div>
+    <div style="display:flex;justify-content:space-between">
+      <span>Recaudos GNV${dom.rec ? " (domingo incluido)" : ""}</span>
+      <b style="color:var(--txt)">−${money(w.recaudos).replace("S/ ","S/ ")}</b></div>
+    ${arr < 0 ? `<div style="display:flex;justify-content:space-between">
+      <span>Arrastre de la semana anterior</span>
+      <b style="color:var(--txt)">${money(arr)}</b></div>` : ""}
+    <div style="display:flex;justify-content:space-between;padding-top:7px;
+      margin-top:5px;border-top:1px solid var(--line);color:var(--txt);font-weight:700">
+      <span>Resultado</span><span>${money(aPagar)}</span></div>
+  </div></div>`;
+
+  /* Días trabajados (feriados, taller, etc.) */
+  h += `<h3>¿Qué días trabajó?</h3><div class="card" style="padding:4px 16px">`;
+  for (const d of w.dias) {
+    if (d.domingo) continue;
+    h += `<div class="row"><div class="l">${DIAS[d.i]} ${fmtD(d.f)}
+      <small>${d.libre ? "sin tarifa" : "cobra S/ " + DB.cfg.tarifa}</small></div>
+      <label class="sw"><input type="checkbox" data-libre="${d.f}"
+        ${d.libre ? "" : "checked"}><i></i></label></div>`;
+  }
+  h += `<div class="row"><div class="l" style="color:var(--dim)">Domingo ${fmtD(dom.f)}
+    <small>nunca cobra tarifa · sus recaudos sí descuentan</small></div></div></div>`;
+
+  /* Resumen para WhatsApp */
+  h += `<button class="btn sec" id="bWA" style="margin-top:6px">Copiar resumen para WhatsApp</button>`;
+
+  document.getElementById("wBody").innerHTML = h;
+
+  document.querySelectorAll("[data-libre]").forEach(el => {
+    el.onchange = () => {
+      const f = el.dataset.libre;
+      if (el.checked) delete DB.libres[f]; else DB.libres[f] = 1;
+      save(); pintarSemana();
+    };
+  });
+  document.getElementById("bWA").onclick = () => copiarResumen(w, arr, aPagar);
+}
+
+function copiarResumen(w, arr, aPagar) {
+  let t = `Semana ${fmtD(w.lun)} – ${fmtD(addD(w.lun,6))}\n`;
+  t += `Tarifa: ${w.trabajados} día${w.trabajados===1?"":"s"} × S/ ${DB.cfg.tarifa} = S/ ${w.tarifa.toFixed(2)}\n`;
+  t += `Recaudos GNV: S/ ${w.recaudos.toFixed(2)}\n`;
+  if (arr < 0) t += `Saldo anterior a favor: S/ ${Math.abs(arr).toFixed(2)}\n`;
+  t += `-----------------\n`;
+  t += aPagar >= 0
+    ? `A PAGAR: S/ ${aPagar.toFixed(2)}`
+    : `NO HAY PAGO ESTA SEMANA\nQuedan S/ ${Math.abs(aPagar).toFixed(2)} a favor, se descuentan la próxima semana.`;
+
+  const done = () => toast("Resumen copiado");
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(done, () => prompt("Copia:", t));
+  else prompt("Copia:", t);
+}
+
+/* ═══════════ VISTA: BOLETAS ═══════════ */
+function pintarLista() {
+  const el = document.getElementById("lBody");
+  if (!DB.boletas.length) {
+    el.innerHTML = `<div class="empty">Todavía no hay boletas.<br>
+      Escanea el QR o registra el importe a mano.</div>`;
+    return;
+  }
+  const porSem = {};
+  for (const b of [...DB.boletas].reverse())
+    (porSem[lunes(b.fecha)] ||= []).push(b);
+
+  let h = "";
+  for (const lun of Object.keys(porSem).sort().reverse()) {
+    const bs = porSem[lun];
+    const rec = r2(bs.reduce((s,b) => s + b.recaudo, 0));
+    h += `<h3>${fmtD(lun)} – ${fmtD(addD(lun,6))} · ${bs.length} boleta${bs.length===1?"":"s"}
+      · recaudo ${money(rec)}</h3><div class="card" style="padding:4px 16px">`;
+    for (const b of bs) {
+      h += `<div class="row"><div class="l">
+        ${DIAS[dow(b.fecha)]} ${fmtD(b.fecha)}
+        <span class="chip ${b.fuente==="QR"?"qr":"man"}">${b.fuente}</span>
+        <small>Consumo S/ ${b.total.toFixed(2)}${
+          b.serie ? ` · ${b.serie}-${b.numero}` : ""}</small></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="r" style="color:#fbbf24">−${b.recaudo.toFixed(2)}</span>
+          <button class="del" data-del="${b.id}">×</button></div></div>`;
+    }
+    h += `</div>`;
+  }
+  el.innerHTML = h;
+  el.querySelectorAll("[data-del]").forEach(x => x.onclick = () => {
+    if (!confirm("¿Eliminar esta boleta?")) return;
+    DB.boletas = DB.boletas.filter(b => b.id !== x.dataset.del);
+    save(); pintarLista(); pintarSemana();
+  });
+}
+
+/* ═══════════ CÁMARA ═══════════ */
+let stream = null, corriendo = false;
+const vid = document.getElementById("vid");
+const cv  = document.getElementById("cv");
+const ctx = cv.getContext("2d", { willReadFrequently: true });
+
+async function abrirCam() {
+  if (corriendo) return cerrarCam();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }, audio: false
+    });
+  } catch (e) {
+    return toast(location.protocol === "https:" || location.hostname === "localhost"
+      ? "No se pudo abrir la cámara" : "La cámara exige HTTPS", true);
+  }
+  vid.srcObject = stream; await vid.play();
+  document.getElementById("wrap").classList.add("on");
+  document.getElementById("bCam").textContent = "Detener cámara";
+  corriendo = true; requestAnimationFrame(tick);
+}
+function cerrarCam() {
+  corriendo = false;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
+  document.getElementById("wrap").classList.remove("on");
+  document.getElementById("bCam").textContent = "Abrir cámara y escanear";
+}
+function tick() {
+  if (!corriendo) return;
+  if (vid.readyState === vid.HAVE_ENOUGH_DATA) {
+    cv.width = vid.videoWidth; cv.height = vid.videoHeight;
+    ctx.drawImage(vid, 0, 0, cv.width, cv.height);
+    const img = ctx.getImageData(0, 0, cv.width, cv.height);
+    const q = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+    if (q && q.data) { procesar(q.data); return; }
+  }
+  requestAnimationFrame(tick);
+}
+
+function procesar(txt) {
+  const diag = document.getElementById("diag");
+  diag.style.display = "block";
+  document.getElementById("diagTxt").textContent = txt.slice(0, 300);
+
+  const p = parseQR(txt);
+  if (!p) {
+    if (navigator.vibrate) navigator.vibrate([60,50,60]);
+    toast("QR leído pero no reconocido — usa el registro manual", true);
+    cerrarCam();
+    return;
+  }
+  const r = agregar({ ...p, fuente: "QR", raw: txt });
+  if (navigator.vibrate) navigator.vibrate(r.ok ? 90 : [60,50,60]);
+  toast(r.msg, !r.ok);
+  cerrarCam(); pintarSemana(); pintarLista();
+}
+
+/* Escaneo desde una foto */
+document.getElementById("bImg").onclick = () => document.getElementById("file").click();
+document.getElementById("file").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const im = new Image();
+  im.onload = () => {
+    // Se reduce el lado mayor a 1400 px: acelera el análisis sin perder el QR.
+    const esc = Math.min(1, 1400 / Math.max(im.width, im.height));
+    cv.width = im.width * esc; cv.height = im.height * esc;
+    ctx.drawImage(im, 0, 0, cv.width, cv.height);
+    const d = ctx.getImageData(0, 0, cv.width, cv.height);
+    const q = jsQR(d.data, d.width, d.height) ||
+              jsQR(d.data, d.width, d.height, { inversionAttempts: "attemptBoth" });
+    if (q && q.data) procesar(q.data);
+    else toast("No se encontró un QR en la foto", true);
+    URL.revokeObjectURL(im.src);
+  };
+  im.onerror = () => toast("No se pudo leer la imagen", true);
+  im.src = URL.createObjectURL(f);
+  e.target.value = "";
+};
+
+/* ═══════════ MANUAL ═══════════ */
+document.getElementById("bMan").onclick = () => {
+  const t = parseFloat(document.getElementById("mTot").value);
+  const f = document.getElementById("mFec").value;
+  if (!isFinite(t) || t <= 0) return toast("Ingresa el importe del consumo", true);
+  if (!f) return toast("Ingresa la fecha", true);
+  const r = agregar({ total: r2(t), fecha: f, fuente: "Manual" });
+  toast(r.msg, !r.ok);
+  document.getElementById("mTot").value = "";
+  pintarSemana(); pintarLista();
+};
+
+/* ═══════════ AJUSTES ═══════════ */
+function cargarCfg() {
+  document.getElementById("cTar").value = DB.cfg.tarifa;
+  document.getElementById("cPct").value = DB.cfg.pct;
+  document.getElementById("cPla").value = DB.cfg.placa;
+  document.getElementById("pctEcho").textContent = DB.cfg.pct;
+}
+document.getElementById("bCfg").onclick = () => {
+  const t = parseFloat(document.getElementById("cTar").value);
+  const p = parseFloat(document.getElementById("cPct").value);
+  if (!isFinite(t) || t < 0) return toast("Tarifa inválida", true);
+  if (!isFinite(p) || p < 0) return toast("Porcentaje inválido", true);
+  const cambio = p !== DB.cfg.pct;
+  DB.cfg.tarifa = t; DB.cfg.pct = p;
+  DB.cfg.placa = document.getElementById("cPla").value.trim().toUpperCase();
+  // Si cambia el porcentaje, se recalculan los recaudos ya registrados.
+  if (cambio && DB.boletas.length &&
+      confirm("¿Recalcular los recaudos de las boletas ya registradas con el nuevo porcentaje?"))
+    DB.boletas.forEach(b => b.recaudo = recaudo(b.total));
+  save(); cargarCfg(); pintarSemana(); pintarLista();
+  toast("Guardado");
+};
+
+const bajar = (nom, txt, tipo) => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([txt], { type: tipo }));
+  a.download = nom; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+document.getElementById("bExpJ").onclick = () =>
+  bajar(`respaldo-gnv-${hoy()}.json`, JSON.stringify(DB, null, 2), "application/json");
+
+document.getElementById("bExpC").onclick = () => {
+  if (!DB.boletas.length) return toast("No hay boletas", true);
+  const h = "fecha,dia,semana,ruc,serie,numero,consumo,recaudo,fuente\n";
+  const f = DB.boletas.map(b => [b.fecha, DIAS[dow(b.fecha)], lunes(b.fecha),
+    b.ruc, b.serie, b.numero, b.total.toFixed(2), b.recaudo.toFixed(2), b.fuente
+  ].join(",")).join("\n");
+  bajar(`boletas-gnv-${hoy()}.csv`, "﻿" + h + f, "text/csv;charset=utf-8");
+};
+
+document.getElementById("bImp").onclick = () => document.getElementById("impF").click();
+document.getElementById("impF").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const d = JSON.parse(rd.result);
+      if (!Array.isArray(d.boletas)) throw 0;
+      if (!confirm(`Se importarán ${d.boletas.length} boletas y se reemplazarán los datos actuales. ¿Continuar?`)) return;
+      DB = Object.assign(structuredClone(DEF), d);
+      save(); cargarCfg(); pintarSemana(); pintarLista();
+      toast("Respaldo importado");
+    } catch (x) { toast("Archivo no válido", true); }
+  };
+  rd.readAsText(f); e.target.value = "";
+};
+
+document.getElementById("bWipe").onclick = () => {
+  if (!confirm("Se borrarán todas las boletas y ajustes. ¿Seguro?")) return;
+  if (!confirm("Esto no se puede deshacer. ¿Confirmas?")) return;
+  DB = structuredClone(DEF);
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  wCur = lunes(hoy());
+  cargarCfg(); pintarSemana(); pintarLista();
+  toast("Datos eliminados");
+};
+
+/* ═══════════ NAVEGACIÓN ═══════════ */
+const TIT = {
+  scan: ["Liquidación GNV", "Alquiler de taxi · descuento por recaudación"],
+  week: ["Semana", "Tarifa lun–sáb · recaudos todos los días"],
+  list: ["Boletas", "Historial de consumos registrados"],
+  cfg:  ["Ajustes", "Parámetros y respaldos"]
+};
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  const v = b.dataset.v;
+  if (v !== "scan") cerrarCam();
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  document.getElementById("ttl").textContent = TIT[v][0];
+  document.getElementById("sub").textContent = TIT[v][1];
+  if (v === "week") pintarSemana();
+  if (v === "list") pintarLista();
+  if (v === "cfg")  cargarCfg();
+  scrollTo(0, 0);
+});
+document.getElementById("bCam").onclick = abrirCam;
+document.getElementById("wPrev").onclick = () => { wCur = addD(wCur, -7); pintarSemana(); };
+document.getElementById("wNext").onclick = () => { wCur = addD(wCur,  7); pintarSemana(); };
+
+let tt;
+function toast(m, err) {
+  const t = document.getElementById("toast");
+  t.textContent = m; t.classList.toggle("err", !!err); t.classList.add("on");
+  clearTimeout(tt); tt = setTimeout(() => t.classList.remove("on"), 2600);
+}
+
+/* ═══════════ ARRANQUE ═══════════ */
+document.getElementById("mFec").value = hoy();
+cargarCfg(); pintarSemana(); pintarLista();
+addEventListener("pagehide", cerrarCam);
+</script>
+</body>
+</html>
