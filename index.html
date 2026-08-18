@@ -90,6 +90,17 @@ h3{font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em
 .wk .t{font-weight:700;font-size:15px;text-align:center;flex:1}
 .wk .t small{display:block;color:var(--dim);font-weight:500;font-size:11px;margin-top:1px}
 .empty{text-align:center;color:var(--dim);padding:30px 16px;font-size:14px;line-height:1.6}
+details.sem{margin-bottom:10px}
+details.sem summary{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 14px;
+  cursor:pointer;user-select:none;list-style:none}
+details.sem summary::-webkit-details-marker{display:none}
+details.sem summary .st{font-size:13px;font-weight:700}
+details.sem summary .st small{display:block;color:var(--dim);font-weight:500;font-size:11px;margin-top:2px}
+details.sem summary .ar{color:var(--dim);font-size:13px;transition:transform .15s;flex:none}
+details.sem[open] summary{border-radius:12px 12px 0 0;border-bottom:none}
+details.sem[open] summary .ar{transform:rotate(180deg)}
+details.sem .card{border-radius:0 0 12px 12px;margin-bottom:0}
 code{background:var(--bg);padding:3px 7px;border-radius:5px;font-size:11px;
   word-break:break-all;display:block;margin-top:5px;line-height:1.5;font-family:ui-monospace,monospace}
 #bar{height:5px;background:var(--line);border-radius:99px;overflow:hidden;margin:12px 0 0;display:none}
@@ -130,8 +141,8 @@ code{background:var(--bg);padding:3px 7px;border-radius:5px;font-size:11px;
   <canvas id="cv" hidden></canvas>
 
   <button class="btn" id="bCam">Abrir cámara y escanear</button>
-  <button class="btn sec" id="bImg">Subir foto de la boleta</button>
-  <input type="file" id="file" accept="image/*" hidden>
+  <button class="btn sec" id="bImg">Subir fotos de boletas</button>
+  <input type="file" id="file" accept="image/*" multiple hidden>
   <div id="bar"><i></i></div>
 
   <div class="card" style="margin-top:16px">
@@ -535,35 +546,62 @@ function procesar(txt,origen){
   cerrarCam(); pintarSemana(); pintarLista();
 }
 
-/* ═══════════ FOTO ═══════════ */
+/* ═══════════ FOTOS (selección múltiple) ═══════════ */
+const cargarImagen = f => new Promise((res,rej)=>{
+  const im=new Image();
+  im.onload=()=>res(im);
+  im.onerror=()=>rej(new Error("imagen ilegible"));
+  im.src=URL.createObjectURL(f);
+});
+
+// Procesa UNA foto y devuelve: "ok" | "dup" | "sin" (sin QR) | "raro" (formato)
+async function leerFoto(f,prog){
+  let im; try{ im=await cargarImagen(f); }catch(e){ return "sin"; }
+  const W=im.naturalWidth, H=im.naturalHeight;
+  setDiag("dRes",W+"×"+H+" (foto)");
+  let res=null;
+  try{ res=await barrer(im,W,H,prog); }catch(e){}
+  URL.revokeObjectURL(im.src);
+  if(!res) return "sin";
+  $("dRaw").style.display="block";
+  $("dRawTxt").textContent=res.txt.slice(0,400);
+  const p=parseQR(res.txt);
+  if(!p) return "raro";
+  ajustarConsumo(p);
+  return agregar({...p,fuente:"QR",raw:res.txt}).ok ? "ok" : "dup";
+}
+
 $("bImg").onclick=()=>$("file").click();
-$("file").onchange=e=>{
-  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+$("file").onchange=async e=>{
+  const files=[...e.target.files]; e.target.value="";
+  if(!files.length) return;
   if(!HAY_JSQR && !detector) return toast("No hay lector de QR disponible",true);
 
-  const im=new Image();
-  im.onload=async()=>{
-    const W=im.naturalWidth, H=im.naturalHeight;
-    setDiag("dRes",W+"×"+H+" (foto)");
-    $("bar").classList.add("on");
-    $("bImg").disabled=true; $("bImg").textContent="Buscando el QR…";
-    const t0=Date.now();
-    let res=null;
-    try{ res=await barrer(im,W,H,p=>{ $("bar").firstElementChild.style.width=(p*100)+"%"; }); }
-    catch(err){ setDiag("dInt","error: "+err.message); }
-    $("bar").classList.remove("on"); $("bar").firstElementChild.style.width="0";
-    $("bImg").disabled=false; $("bImg").textContent="Subir foto de la boleta";
-    URL.revokeObjectURL(im.src);
+  $("bar").classList.add("on");
+  $("bImg").disabled=true;
+  const st={ok:0,dup:0,sin:0,raro:0};
 
-    const seg=((Date.now()-t0)/1000).toFixed(1);
-    if(res){ setDiag("dInt",`foto · ${res.via} · ${seg}s`); procesar(res.txt,"foto"); }
-    else{
-      setDiag("dInt",`foto · sin QR tras ${seg}s`);
-      toast("No se encontró el QR — acerca más la cámara al tomar la foto",true);
-    }
-  };
-  im.onerror=()=>toast("No se pudo abrir la imagen",true);
-  im.src=URL.createObjectURL(f);
+  for(let i=0;i<files.length;i++){
+    $("bImg").textContent = files.length>1
+      ? `Leyendo foto ${i+1} de ${files.length}…` : "Buscando el QR…";
+    const r=await leerFoto(files[i],
+      p=>{ $("bar").firstElementChild.style.width=(((i+p)/files.length)*100)+"%"; });
+    st[r]++;
+    setDiag("dInt",`foto ${i+1}/${files.length} · ${
+      {ok:"registrada",dup:"duplicada",sin:"sin QR",raro:"formato desconocido"}[r]}`);
+  }
+
+  $("bar").classList.remove("on"); $("bar").firstElementChild.style.width="0";
+  $("bImg").disabled=false; $("bImg").textContent="Subir fotos de boletas";
+  pintarSemana(); pintarLista();
+
+  const partes=[];
+  if(st.ok)   partes.push(`${st.ok} registrada${st.ok>1?"s":""}`);
+  if(st.dup)  partes.push(`${st.dup} duplicada${st.dup>1?"s":""} (no se cuentan)`);
+  if(st.sin)  partes.push(`${st.sin} sin QR legible`);
+  if(st.raro) partes.push(`${st.raro} con formato desconocido`);
+  if(navigator.vibrate) navigator.vibrate(st.ok?90:[60,50,60]);
+  toast(partes.join(" · ")||"Nada que procesar", !st.ok);
 };
 
 /* ═══════════ CÁLCULO SEMANAL ═══════════ */
@@ -685,13 +723,25 @@ function pintarLista(){
   if(!DB.boletas.length){
     el.innerHTML=`<div class="empty">Todavía no hay boletas.<br>
       Escanea el QR o registra el importe a mano.</div>`; return; }
+
+  // Se recuerda qué semanas estaban desplegadas para no cerrarlas al re-pintar
+  const abiertas=new Set([...el.querySelectorAll("details.sem[open]")].map(d=>d.dataset.lun));
+  const habiaLista=el.querySelector("details.sem")!==null;
+
   const porSem={};
   for(const b of [...DB.boletas].reverse()) (porSem[lunes(b.fecha)]=porSem[lunes(b.fecha)]||[]).push(b);
+  const semanas=Object.keys(porSem).sort().reverse();
+
   let h="";
-  for(const lun of Object.keys(porSem).sort().reverse()){
+  semanas.forEach((lun,idx)=>{
     const bs=porSem[lun], rec=r2(bs.reduce((s,b)=>s+b.recaudo,0));
-    h+=`<h3>${fmtD(lun)} – ${fmtD(addD(lun,6))} · ${bs.length} boleta${bs.length===1?"":"s"}
-      · recaudo ${money(rec)}</h3><div class="card" style="padding:4px 16px">`;
+    // La más reciente llega abierta; el resto conserva su estado
+    const abrir = habiaLista ? abiertas.has(lun) : idx===0;
+    h+=`<details class="sem" data-lun="${lun}"${abrir?" open":""}>
+      <summary><span class="st">${fmtD(lun)} – ${fmtD(addD(lun,6))}
+        <small>${bs.length} boleta${bs.length===1?"":"s"} · recaudo ${money(rec)}</small></span>
+        <span class="ar">▾</span></summary>
+      <div class="card" style="padding:4px 16px">`;
     for(const b of bs){
       h+=`<div class="row"><div class="l">${DIAS[dow(b.fecha)]} ${fmtD(b.fecha)}
         <span class="chip ${b.fuente==="QR"?"qr":"man"}">${b.fuente}</span>
@@ -700,10 +750,11 @@ function pintarLista(){
           <span class="r" style="color:#fbbf24">−${b.recaudo.toFixed(2)}</span>
           <button class="del" data-del="${b.id}">×</button></div></div>`;
     }
-    h+=`</div>`;
-  }
+    h+=`</div></details>`;
+  });
   el.innerHTML=h;
-  el.querySelectorAll("[data-del]").forEach(x=>x.onclick=()=>{
+  el.querySelectorAll("[data-del]").forEach(x=>x.onclick=ev=>{
+    ev.preventDefault();
     if(!confirm("¿Eliminar esta boleta?")) return;
     DB.boletas=DB.boletas.filter(b=>b.id!==x.dataset.del);
     save(); pintarLista(); pintarSemana(); });
