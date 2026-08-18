@@ -312,6 +312,24 @@ code{background:rgba(0,0,0,.35);padding:3px 7px;border-radius:8px;font-size:11px
     <div id="cfgHist"></div>
   </div>
   <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:2px">Respaldo en Google Sheets</div>
+    <div style="color:var(--dim);font-size:12px;margin:4px 0 2px;line-height:1.5">
+      Cada boleta registrada se envía también a tu hoja de cálculo. Si no hay señal,
+      queda en cola y se envía sola después.
+    </div>
+    <label>URL del Apps Script (termina en /exec)</label>
+    <input type="url" id="sURL" placeholder="https://script.google.com/macros/s/…/exec">
+    <label>Token</label>
+    <input type="text" id="sTok" placeholder="gnv-…">
+    <div style="display:flex;gap:9px;margin-top:14px">
+      <button class="btn sec" id="bSyncSave" style="margin:0">Guardar</button>
+      <button class="btn sec" id="bSyncTest" style="margin:0">Probar</button>
+    </div>
+    <button class="btn sec" id="bSyncAll" style="margin-top:9px">Enviar todas las boletas a la hoja</button>
+    <div class="dg" style="margin-top:12px"><span>Estado</span><b id="sEstado">—</b></div>
+  </div>
+
+  <div class="card">
     <div style="font-weight:700;font-size:14px;margin-bottom:2px">Copia de seguridad</div>
     <div style="color:var(--dim);font-size:12px;margin:4px 0 14px;line-height:1.5">
       Los datos viven en este navegador. Exporta cada cierto tiempo para no perderlos.
@@ -360,10 +378,13 @@ const $ = id => document.getElementById(id);
 /* ═══════════ ALMACENAMIENTO ═══════════ */
 const KEY = "gnv_liq_v1";
 let mem = null;
-const DEF = { boletas: [], libres: {}, cfg: { tarifa: 50, pct: 90, placa: "" }, cfgHist: [] };
+const DEF = { boletas: [], libres: {}, cfg: { tarifa: 50, pct: 90, placa: "" }, cfgHist: [],
+              sync: { url:"", token:"", cola: [] } };
 const clone = o => JSON.parse(JSON.stringify(o));
 function load(){ try{ const r=localStorage.getItem(KEY);
-    return r?Object.assign({},DEF,JSON.parse(r)):clone(DEF);
+    const d=Object.assign(clone(DEF), r?JSON.parse(r):{});
+    d.sync=Object.assign({url:"",token:"",cola:[]}, d.sync||{});
+    return d;
   }catch(e){ return mem||(mem=clone(DEF)); } }
 function save(){ mem=DB; try{ localStorage.setItem(KEY,JSON.stringify(DB)); }catch(e){} }
 let DB = load();
@@ -445,13 +466,60 @@ function agregar(b){
   const k=[b.ruc,b.serie,b.numero].join("-");
   if(b.numero&&DB.boletas.some(x=>[x.ruc,x.serie,x.numero].join("-")===k))
     return {ok:false,msg:"Esa boleta ya estaba registrada"};
-  DB.boletas.push({id:Date.now()+""+Math.random().toString(36).slice(2,6),
+  const nueva={id:Date.now()+""+Math.random().toString(36).slice(2,6),
     ruc:b.ruc||"",tipo:b.tipo||"",serie:b.serie||"",numero:b.numero||"",
-    fecha:b.fecha,total:b.total,recaudo:recaudo(b.total),fuente:b.fuente||"QR",raw:b.raw||""});
+    fecha:b.fecha,total:b.total,recaudo:recaudo(b.total),
+    pagado:b.pagado||r2(b.total+recaudo(b.total)),
+    fuente:b.fuente||"QR",raw:b.raw||""};
+  DB.boletas.push(nueva);
   DB.boletas.sort((a,c)=>a.fecha<c.fecha?-1:a.fecha>c.fecha?1:0);
   save();
+  encolar({action:"add",boleta:filaSheet(nueva)});
   return {ok:true,msg:`Registrado · consumo ${money(b.total)} · recaudo ${money(recaudo(b.total))}`};
 }
+
+/* ══════════════════════════════════════════════════════════
+   SINCRONIZACIÓN CON GOOGLE SHEETS (via Apps Script)
+   Cada registro/borrado se encola y se envía cuando hay señal.
+   Se manda como text/plain para evitar el preflight de CORS.
+   ══════════════════════════════════════════════════════════ */
+function filaSheet(b){
+  return {id:b.id,fecha:b.fecha,dia:DIAS[dow(b.fecha)],semana:lunes(b.fecha),
+    ruc:b.ruc,serie:b.serie,numero:b.numero,consumo:b.total,
+    recaudo:b.recaudo,pagado:b.pagado||"",fuente:b.fuente};
+}
+function encolar(item){
+  if(!DB.sync||!DB.sync.url) return;          // sin conexión configurada, no se acumula
+  DB.sync.cola.push(item); save();
+  syncTick(); pintarSync();
+}
+let syncBusy=false;
+async function syncTick(){
+  if(syncBusy||!DB.sync.url||!DB.sync.cola.length) return;
+  if(typeof navigator!=="undefined"&&navigator.onLine===false) return;
+  syncBusy=true;
+  try{
+    while(DB.sync.cola.length){
+      const item=DB.sync.cola[0];
+      const res=await fetch(DB.sync.url,{method:"POST",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify({token:DB.sync.token,...item})});
+      const j=await res.json();
+      if(!j.ok) break;                        // token inválido u otro error: no perder la cola
+      DB.sync.cola.shift(); save();
+    }
+  }catch(e){}                                 // sin señal: la cola espera
+  syncBusy=false; pintarSync();
+}
+function pintarSync(){
+  const el=$("sEstado"); if(!el) return;
+  if(!DB.sync.url){ el.innerHTML='<span style="color:var(--dim)">sin conectar</span>'; return; }
+  el.innerHTML=DB.sync.cola.length
+    ? `<span style="color:#ffce7a">${DB.sync.cola.length} pendiente${DB.sync.cola.length>1?"s":""} de enviar</span>`
+    : '<span class="si">todo sincronizado</span>';
+}
+addEventListener("online",syncTick);
+setInterval(syncTick,45000);
 
 /* ══════════════════════════════════════════════════════════
    MOTOR DE LECTURA DE QR
@@ -872,7 +940,9 @@ function pintarLista(){
     ev.preventDefault();
     if(!confirm("¿Eliminar esta boleta?")) return;
     DB.boletas=DB.boletas.filter(b=>b.id!==x.dataset.del);
-    save(); pintarLista(); pintarSemana(); });
+    save();
+    encolar({action:"del",id:x.dataset.del});
+    pintarLista(); pintarSemana(); });
 }
 
 /* ═══════════ MANUAL ═══════════ */
@@ -923,8 +993,34 @@ function pintarHist(){
 function cargarCfg(){
   $("cTar").value=DB.cfg.tarifa; $("cPct").value=DB.cfg.pct;
   $("cPla").value=DB.cfg.placa; $("pctEcho").textContent=DB.cfg.pct;
-  setCfgLock(true); pintarHist();
+  $("sURL").value=DB.sync.url; $("sTok").value=DB.sync.token;
+  setCfgLock(true); pintarHist(); pintarSync();
 }
+$("bSyncSave").onclick=()=>{
+  const u=$("sURL").value.trim(), t=$("sTok").value.trim();
+  if(u&&!/^https:\/\//.test(u)) return toast("La URL debe empezar con https://",true);
+  DB.sync.url=u; DB.sync.token=t; save(); pintarSync();
+  toast(u?"Conexión guardada":"Conexión desactivada");
+};
+$("bSyncTest").onclick=async()=>{
+  const u=$("sURL").value.trim(), t=$("sTok").value.trim();
+  if(!u) return toast("Primero pega la URL",true);
+  $("bSyncTest").disabled=true; $("bSyncTest").textContent="…";
+  try{
+    const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({token:t,action:"ping"})});
+    const j=await r.json();
+    toast(j.ok?"Conexión OK — la hoja responde":"La hoja responde pero el token no coincide",!j.ok);
+  }catch(e){ toast("No responde — revisa la URL o la implementación",true); }
+  $("bSyncTest").disabled=false; $("bSyncTest").textContent="Probar";
+};
+$("bSyncAll").onclick=()=>{
+  if(!DB.sync.url) return toast("Primero guarda la conexión",true);
+  if(!DB.boletas.length) return toast("No hay boletas",true);
+  for(const b of DB.boletas) DB.sync.cola.push({action:"add",boleta:filaSheet(b)});
+  save(); syncTick(); pintarSync();
+  toast(`${DB.boletas.length} boletas en cola de envío`);
+};
 $("bEdit").onclick=()=>{ setCfgLock(false); $("cTar").focus(); };
 $("bCfg").onclick=()=>{
   const t=parseFloat($("cTar").value), p=parseFloat($("cPct").value);
@@ -1011,7 +1107,7 @@ function toast(m,err){
 
 /* ═══════════ ARRANQUE ═══════════ */
 $("mFec").value=hoy();
-cargarCfg(); pintarSemana(); pintarLista(); pintarDiag();
+cargarCfg(); pintarSemana(); pintarLista(); pintarDiag(); syncTick();
 if(!HAY_JSQR) toast("El lector interno no cargó — revisa el Diagnóstico",true);
 addEventListener("pagehide",cerrarCam);
 </script>
