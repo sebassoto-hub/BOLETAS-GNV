@@ -102,8 +102,11 @@ code{background:var(--bg);padding:3px 7px;border-radius:5px;font-size:11px;
 .si{color:#4ade80}.no{color:#f87171}
 #toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(90px);
   background:var(--ok);color:#04240f;padding:12px 20px;border-radius:11px;font-weight:700;
-  font-size:14px;z-index:60;transition:transform .22s;pointer-events:none;max-width:88vw;text-align:center}
-#toast.on{transform:translateX(-50%) translateY(0)}
+  font-size:14px;z-index:60;pointer-events:none;max-width:88vw;text-align:center;
+  opacity:0;visibility:hidden;
+  transition:transform .22s,opacity .22s,visibility 0s .25s}
+#toast.on{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;
+  transition:transform .22s,opacity .22s}
 #toast.err{background:var(--bad);color:#fff}
 </style>
 </head>
@@ -290,6 +293,28 @@ function parseQR(txt){
 
 /* ═══════════ REGISTRO ═══════════ */
 const recaudo = t => Math.round(t*(DB.cfg.pct/100)*100)/100;
+
+/* Algunos grifos (como GESO) ponen en el campo "total" del QR el TOTAL A PAGAR
+   (consumo + recaudo) en vez del importe de la boleta. El IGV delata el consumo
+   real (consumo = IGV × 118/18); si el total del QR calza con consumo + recaudo,
+   se separa. Si el total ya es el consumo, no se toca nada. */
+function ajustarConsumo(p){
+  const pct=DB.cfg.pct;
+  const igvC = p.igv>0 ? p.igv*118/18 : null;          // consumo según el IGV
+  if(igvC && Math.abs(p.total-igvC)<=0.04) return p;   // el total ya es el consumo
+  if(!igvC) return p;                                  // sin IGV no se especula
+  const base=p.total/(1+pct/100);
+  for(const c of [r2(base-0.01),r2(base),r2(base+0.01)]){
+    const rec=Math.round(c*(pct/100)*100)/100;
+    if(r2(c+rec)===r2(p.total) && Math.abs(c-igvC)<=0.06){
+      p.pagado=p.total;                                // lo que pagó en el grifo
+      p.total=c;                                       // consumo real de la boleta
+      p.ajustado=true;
+      return p;
+    }
+  }
+  return p;
+}
 function agregar(b){
   const k=[b.ruc,b.serie,b.numero].join("-");
   if(b.serie&&b.numero&&DB.boletas.some(x=>[x.ruc,x.serie,x.numero].join("-")===k))
@@ -299,7 +324,7 @@ function agregar(b){
     fecha:b.fecha,total:b.total,recaudo:recaudo(b.total),fuente:b.fuente||"QR",raw:b.raw||""});
   DB.boletas.sort((a,c)=>a.fecha<c.fecha?-1:a.fecha>c.fecha?1:0);
   save();
-  return {ok:true,msg:`Registrado · recaudo ${money(recaudo(b.total))}`};
+  return {ok:true,msg:`Registrado · consumo ${money(b.total)} · recaudo ${money(recaudo(b.total))}`};
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -502,6 +527,8 @@ function procesar(txt,origen){
     toast("QR leído pero con formato desconocido — mira el Diagnóstico",true);
     cerrarCam(); return;
   }
+  ajustarConsumo(p);
+  if(p.ajustado) setDiag("dInt",`QR: total a pagar ${money(p.pagado)} → consumo ${money(p.total)}`);
   const r=agregar({...p,fuente:"QR",raw:txt});
   if(navigator.vibrate) navigator.vibrate(r.ok?90:[60,50,60]);
   toast(r.msg,!r.ok);
